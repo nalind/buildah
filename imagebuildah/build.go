@@ -28,6 +28,7 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	docker "github.com/fsouza/go-dockerclient"
+	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/openshift/imagebuilder"
@@ -245,9 +246,15 @@ type StageExecutor struct {
 	volumeCache     map[string]string
 	volumeCacheInfo map[string]os.FileInfo
 	mountPoint      string
-	copyFrom        string // Used to keep track of the --from flag from COPY and ADD
+	copyFrom        string            // Used to keep track of the --from flag from COPY and ADD
+	copiedHash      map[string]string // Used to keep track of digests of copied data
 	output          string
 	containerIDs    []string
+}
+
+type copyHash struct {
+	source string
+	hash   string
 }
 
 // builtinAllowedBuildArgs is list of built-in allowed build args.  Normally we
@@ -278,6 +285,7 @@ func (b *Executor) startStage(name string, index, stages int, from, output strin
 		name:            name,
 		volumeCache:     make(map[string]string),
 		volumeCacheInfo: make(map[string]os.FileInfo),
+		copiedHash:      make(map[string]string),
 		output:          output,
 	}
 	b.stages[name] = stage
@@ -491,31 +499,40 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		if err := s.volumeCacheInvalidate(copy.Dest); err != nil {
 			return err
 		}
-		sources := []string{}
 		for _, src := range copy.Src {
+			contextDir := s.executor.contextDir
+			source := src
+
 			if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
-				sources = append(sources, src)
+				// source = src
 			} else if len(copy.From) > 0 {
 				if other, ok := s.executor.stages[copy.From]; ok && other.index < s.index {
-					sources = append(sources, filepath.Join(other.mountPoint, src))
+					source = filepath.Join(other.mountPoint, src)
+					contextDir = other.mountPoint
 				} else if builder, ok := s.executor.containerMap[copy.From]; ok {
-					sources = append(sources, filepath.Join(builder.MountPoint, src))
+					source = filepath.Join(builder.MountPoint, src)
+					contextDir = builder.MountPoint
 				} else {
 					return errors.Errorf("the stage %q has not been built", copy.From)
 				}
 			} else {
-				sources = append(sources, filepath.Join(s.executor.contextDir, src))
+				source = filepath.Join(s.executor.contextDir, src)
 			}
-		}
 
-		options := buildah.AddAndCopyOptions{
-			Chown:      copy.Chown,
-			ContextDir: s.executor.contextDir,
-			Excludes:   s.executor.excludes,
-		}
+			digester := digest.Canonical.Digester()
 
-		if err := s.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
-			return err
+			options := buildah.AddAndCopyOptions{
+				Chown:      copy.Chown,
+				ContextDir: contextDir,
+				Excludes:   s.executor.excludes,
+				Hasher:     digester.Hash(),
+			}
+
+			if err := s.builder.Add(copy.Dest, copy.Download, options, source); err != nil {
+				return err
+			}
+
+			s.copiedHash[src] = digester.Digest().Hex()
 		}
 	}
 	return nil
@@ -951,7 +968,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// squash the contents of the base image.  Whichever is
 			// the case, we need to commit() to create a new image.
 			logCommit(s.output, -1)
-			if imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(nil), false, s.output); err != nil {
+			if imgID, ref, err = s.commit(ctx, ib, s.getCreatedBy(nil), false, s.output); err != nil {
 				return "", nil, errors.Wrapf(err, "error committing base container")
 			}
 		} else {
@@ -1023,7 +1040,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// instruction in the history that we'll write
 				// for the image when we eventually commit it.
 				now := time.Now()
-				s.builder.AddPrependedEmptyLayer(&now, s.executor.getCreatedBy(node), "", "")
+				s.builder.AddPrependedEmptyLayer(&now, s.getCreatedBy(step), "", "")
 				continue
 			} else {
 				// This is the last instruction for this stage,
@@ -1032,7 +1049,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// if it's used as the basis for a later stage.
 				if lastStage || imageIsUsedLater {
 					logCommit(s.output, i)
-					imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(node), false, s.output)
+					imgID, ref, err = s.commit(ctx, ib, s.getCreatedBy(step), false, s.output)
 					if err != nil {
 						return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 					}
@@ -1117,7 +1134,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			}
 			// Create a new image, maybe with a new layer.
 			logCommit(s.output, i)
-			imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(node), !s.stepRequiresLayer(step), commitName)
+			imgID, ref, err = s.commit(ctx, ib, s.getCreatedBy(step), !s.stepRequiresLayer(step), commitName)
 			if err != nil {
 				return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 			}
@@ -1255,18 +1272,40 @@ func (b *Executor) getImageHistory(ctx context.Context, imageID string) ([]v1.Hi
 }
 
 // getCreatedBy returns the command the image at node will be created by.
-func (b *Executor) getCreatedBy(node *parser.Node) string {
-	if node == nil {
+func (s *StageExecutor) getCreatedBy(step *imagebuilder.Step) string {
+	if step == nil {
 		return "/bin/sh"
 	}
-	if node.Value == "run" {
-		buildArgs := b.getBuildArgs()
+	if strings.ToUpper(step.Command) == "RUN" {
+		buildArgs := s.executor.getBuildArgs()
 		if buildArgs != "" {
-			return "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " /bin/sh -c " + node.Original[4:]
+			return "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " /bin/sh -c " + step.Original[4:]
 		}
-		return "/bin/sh -c " + node.Original[4:]
+		return "/bin/sh -c " + step.Original[4:]
 	}
-	return "/bin/sh -c #(nop) " + node.Original
+	if strings.ToUpper(step.Command) == "ADD" || strings.ToUpper(step.Command) == "COPY" {
+		hashForSource := func(src string) string {
+			if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
+				return s.copiedHash[src]
+			}
+			return "file:" + s.copiedHash[src]
+		}
+		args := step.Args[:len(step.Args)-1]
+		summary := ""
+		for i := range args {
+			hash := hashForSource(args[i])
+			if i == 0 {
+				summary = hash
+			} else {
+				summary = summary + "," + hash
+			}
+		}
+		if len(args) > 1 {
+			summary = "multi:" + digest.Canonical.FromBytes([]byte(summary)).Hex()
+		}
+		return fmt.Sprintf("/bin/sh -c #(nop) %s %s in %s ", strings.ToUpper(step.Command), summary, step.Args[len(step.Args)-1])
+	}
+	return "/bin/sh -c #(nop)  " + step.Original
 }
 
 // historyMatches returns true if the history of the image matches the lines

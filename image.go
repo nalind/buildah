@@ -57,7 +57,7 @@ type containerImageRef struct {
 	exporting             bool
 	squash                bool
 	emptyLayer            bool
-	tarPath               func(path string) (io.ReadCloser, error)
+	tarPath               func(path string, excludePatterns []string) (io.ReadCloser, error)
 	parent                string
 	blobDirectory         string
 	preEmptyLayers        []v1.History
@@ -141,7 +141,7 @@ func (i *containerImageRef) extractRootfs() (io.ReadCloser, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "error mounting container %q", i.containerID)
 	}
-	rc, err := i.tarPath(mountPoint)
+	rc, err := i.tarPath(mountPoint, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error extracting rootfs from container %q", i.containerID)
 	}
