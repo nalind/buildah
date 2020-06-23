@@ -42,6 +42,7 @@ RUN useradd build; yum -y update; yum -y reinstall shadow-utils; yum -y install 
      rm -rf /root/buildah/*; \
      yum -y remove bats git golang go-md2man make; \
      yum clean all;
+     rpm --setcaps -f /usr/bin/newuidmap /usr/bin/newgidmap;
 
 ADD https://raw.githubusercontent.com/containers/buildah/master/contrib/buildahimage/stable/containers.conf /etc/containers/
 
