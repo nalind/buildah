@@ -491,17 +491,18 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					return false, false, nil
 				})
 				getOptions := copier.GetOptions{
-					UIDMap:         srcUIDMap,
-					GIDMap:         srcGIDMap,
-					Excludes:       options.Excludes,
-					ExpandArchives: extract,
-					ChownDirs:      chownDirs,
-					ChmodDirs:      chmodDirsFiles,
-					ChownFiles:     chownFiles,
-					ChmodFiles:     chmodDirsFiles,
-					StripSetuidBit: options.StripSetuidBit,
-					StripSetgidBit: options.StripSetgidBit,
-					StripStickyBit: options.StripStickyBit,
+					UIDMap:           srcUIDMap,
+					GIDMap:           srcGIDMap,
+					Excludes:         options.Excludes,
+					ExpandArchives:   extract,
+					ChownDirs:        chownDirs,
+					ChmodDirs:        chmodDirsFiles,
+					ChownFiles:       chownFiles,
+					ChmodFiles:       chmodDirsFiles,
+					StripSetuidBit:   options.StripSetuidBit,
+					StripSetgidBit:   options.StripSetgidBit,
+					StripStickyBit:   options.StripStickyBit,
+					IgnoreUnreadable: true,
 				}
 				getErr = copier.Get(contextDir, contextDir, getOptions, []string{glob}, writer)
 				closeErr = writer.Close()
