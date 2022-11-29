@@ -857,3 +857,24 @@ _EOF
 	run_buildah run --cap-add=ALL $cid grep ^CapInh: /proc/self/status
 	expect_output "CapInh:	0000000000000000"
 }
+
+@test "run-color" {
+	# For reference, console_codes(4) is close enough to xterm in terms of "ECMA-48 Select
+	# Graphic Rendition", if that's a handier reference than xterm's ctlseqs.ms document.
+	skip_if_no_runtime
+
+	_prefetch alpine
+
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+	cid=$output
+	# Run under "script" to ensure that buildah runs with a pseudo-terminal allocated,
+	# even if this test itself doesn't.
+	env TERM=xterm script -B ${TEST_SCRATCH_DIR}/script.log -c "${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} run --stdout-color=green --stderr-color=red $cid sh -c 'echo stdout; echo stderr >&2'"
+	if grep '\[31m' ${TEST_SCRATCH_DIR}/script.log || grep '\[32m' ${TEST_SCRATCH_DIR}/script.log ; then
+		die Spotted terminal control sequences when we should not have seen any being used.
+	fi
+	env TERM=xterm script -B ${TEST_SCRATCH_DIR}/script.log -c "${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} run --stdout-color=green --stderr-color=red --terminal=false $cid sh -c 'echo stdout; echo stderr >&2'" < /dev/null
+	if ! grep '\[31m' ${TEST_SCRATCH_DIR}/script.log || ! grep '\[32m' ${TEST_SCRATCH_DIR}/script.log ; then
+		die Missed terminal control sequences when we were expecting some to be used.
+	fi
+}

@@ -139,6 +139,10 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		g.SetProcessArgs(nil)
 	}
 
+	if !spec.Process.Terminal {
+		options.Stdout, options.Stderr = highlightedStdoutStderr(options)
+	}
+
 	setupTerminal(g, options.Terminal, options.TerminalSize)
 
 	configureNetwork, configureNetworks, err := b.configureNamespaces(g, &options)

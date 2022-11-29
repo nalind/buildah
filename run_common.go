@@ -46,6 +46,7 @@ import (
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/unshare"
 	storageTypes "github.com/containers/storage/types"
+	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
@@ -1883,4 +1884,113 @@ func (b *Builder) cleanupRunMounts(context *imageTypes.SystemContext, mountpoint
 	// unlock if any locked files from this RUN statement
 	internalParse.UnlockLockArray(artifacts.TargetLocks)
 	return prevErr
+}
+
+func highlightedStdoutStderr(options RunOptions) (io.Writer, io.Writer) {
+	stdin, stdout, stderr := options.Stdin, options.Stdout, options.Stderr
+	if stdin == nil {
+		stdin = os.Stdin
+	}
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+	colors := func(color string, terminal *term.Terminal) ([]byte, []byte, bool) {
+		switch color {
+		case "black":
+			return terminal.Escape.Black, terminal.Escape.Reset, true
+		case "green":
+			return terminal.Escape.Green, terminal.Escape.Reset, true
+		case "red":
+			return terminal.Escape.Red, terminal.Escape.Reset, true
+		case "yellow":
+			return terminal.Escape.Yellow, terminal.Escape.Reset, true
+		case "blue":
+			return terminal.Escape.Blue, terminal.Escape.Reset, true
+		case "magenta":
+			return terminal.Escape.Magenta, terminal.Escape.Reset, true
+		case "cyan":
+			return terminal.Escape.Cyan, terminal.Escape.Reset, true
+		case "white":
+			return terminal.Escape.White, terminal.Escape.Reset, true
+		case "default":
+			return nil, terminal.Escape.Reset, true
+		}
+		return nil, nil, false
+	}
+	if stdoutFder, ok := stdout.(interface{ Fd() uintptr }); ok {
+		if term.IsTerminal(int(stdoutFder.Fd())) {
+			stdioReaderWriter := struct {
+				io.Reader
+				io.Writer
+			}{
+				Reader: stdin,
+				Writer: stdout,
+			}
+			terminal := term.NewTerminal(&stdioReaderWriter, "")
+			if set, reset, ok := colors(options.StdoutColor, terminal); ok {
+				stdout = newWrappedWriter(stdout, set, reset)
+			}
+		}
+	}
+	if stderrFder, ok := stderr.(interface{ Fd() uintptr }); ok {
+		if term.IsTerminal(int(stderrFder.Fd())) {
+			stdioReaderWriter := struct {
+				io.Reader
+				io.Writer
+			}{
+				Reader: stdin,
+				Writer: stderr,
+			}
+			terminal := term.NewTerminal(&stdioReaderWriter, "")
+			if set, reset, ok := colors(options.StderrColor, terminal); ok {
+				stderr = newWrappedWriter(stderr, set, reset)
+			}
+		}
+	}
+	return stdout, stderr
+}
+
+func newWrappedWriter(writer io.Writer, prefix, suffix []byte) io.Writer {
+	return &wrappedWriter{writer: writer, prefix: prefix, suffix: suffix}
+}
+
+type wrappedWriter struct {
+	writer         io.Writer
+	prefix, suffix []byte
+}
+
+func (w *wrappedWriter) Write(buf []byte) (int, error) {
+	var errs *multierror.Error
+	if len(w.prefix) > 0 {
+		n, err := w.writer.Write(w.prefix)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+		if n != len(w.prefix) {
+			errs = multierror.Append(errs, fmt.Errorf("short write: %d != %d", n, len(w.prefix)))
+		}
+	}
+	n, err := w.writer.Write(buf)
+	if err != nil {
+		errs = multierror.Append(errs, err)
+	}
+	if len(w.suffix) > 0 {
+		n, err := w.writer.Write(w.suffix)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+		if n != len(w.suffix) {
+			errs = multierror.Append(errs, fmt.Errorf("short write: %d != %d", n, len(w.suffix)))
+		}
+	}
+	if errs != nil {
+		if len(errs.Errors) == 1 && errs.Errors[0] != nil {
+			return n, errs.Errors[0]
+		}
+		return n, errs.ErrorOrNil()
+	}
+	return n, nil
 }

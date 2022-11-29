@@ -708,6 +708,15 @@ Pass stdin into the RUN containers. Sometimes commands being RUN within a Contai
 want to request information from the user. For example apt asking for a confirmation for install.
 Use --stdin to be able to interact from the terminal during the build.
 
+**--stdout-color**=*color*
+**--stderr-color**=*color*
+
+Set colors for stdout and stderr output.  Recognized color names are "black",
+"green", "red", "yellow", "blue", "magenta", "cyan", "white", and "default".
+Only effective if output is going to a terminal, and if the current terminal
+type supports colors.  By default, **--stdout-color**=*default* and
+**--stderr-color**=*red*.
+
 **--tag**, **-t** *imageName*
 
 Specifies the name which will be assigned to the resulting image if the build

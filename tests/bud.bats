@@ -5665,3 +5665,24 @@ _EOF
   run_buildah build --security-opt no-new-privileges $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
   expect_output --substring "NoNewPrivs:.*1"
 }
+
+@test "build-color" {
+  # For reference, console_codes(4) is close enough to xterm in terms of "ECMA-48 Select
+  # Graphic Rendition", if that's a handier reference than xterm's ctlseqs.ms document.
+  skip_if_no_runtime
+
+  _prefetch alpine
+
+  # Run under "script" to ensure that buildah runs with a pseudo-terminal allocated,
+  # even if this test itself doesn't.
+  env TERM=xterm script -B ${TEST_SCRATCH_DIR}/script.log -c "${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} build --stdout-color=green --stderr-color=red $BUDFILES/stderr"
+  if ! grep this-is-stdout ${TEST_SCRATCH_DIR}/script.log ; then
+    die Missed expected stdout output which should have been created during the build.
+  fi
+  if ! grep this-is-stderr ${TEST_SCRATCH_DIR}/script.log ; then
+    die Missed expected stderr output which should have been created during the build.
+  fi
+  if ! grep '\[31m' ${TEST_SCRATCH_DIR}/script.log || ! grep '\[32m' ${TEST_SCRATCH_DIR}/script.log ; then
+    die Missed terminal control sequences when we were expecting some to be used.
+  fi
+}

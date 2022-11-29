@@ -206,6 +206,15 @@ consult the manpages of the selected container runtime.
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah run, the option given would be `--runtime-flag log-format=json`.
 
+**--stdout-color**=*color*
+**--stderr-color**=*color*
+
+Set colors for stdout and stderr output.  Recognized color names are "black",
+"green", "red", "yellow", "blue", "magenta", "cyan", "white", and "default".
+Only effective with **--terminal=false**, output is going to a terminal, and if
+the current terminal type supports colors.  By default,
+**--stdout-color**=*default* and **--stderr-color**=*red*.
+
 **--tty**, **--terminal**, **-t**
 
 By default a pseudo-TTY is allocated only when buildah's standard input is

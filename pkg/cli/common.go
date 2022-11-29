@@ -102,6 +102,8 @@ type BudResults struct {
 	Envs                []string
 	OSFeatures          []string
 	OSVersion           string
+	StdoutColor         string
+	StderrColor         string
 }
 
 // FromAndBugResults represents the results for common flags
@@ -265,6 +267,8 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.BoolVar(&flags.Squash, "squash", false, "squash newly built layers into a single new layer")
 	fs.StringArrayVar(&flags.SSH, "ssh", []string{}, "SSH agent socket or keys to expose to the build. (format: default|<id>[=<socket>|<key>[,<key>]])")
 	fs.BoolVar(&flags.Stdin, "stdin", false, "pass stdin into containers")
+	fs.StringVar(&flags.StdoutColor, "stdout-color", "default", "`color` for stdout")
+	fs.StringVar(&flags.StderrColor, "stderr-color", "red", "`color` for stderr")
 	fs.StringArrayVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
 	fs.StringVarP(&flags.BuildOutput, "output", "o", "", "output destination (format: type=local,dest=path)")
 	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")

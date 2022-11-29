@@ -29,6 +29,8 @@ type runInputOptions struct {
 	runtimeFlag []string
 	noHosts     bool
 	noPivot     bool
+	stdoutColor string
+	stderrColor string
 	terminal    bool
 	volumes     []string
 	workingDir  string
@@ -72,6 +74,8 @@ func init() {
 	flags.StringSliceVar(&opts.runtimeFlag, "runtime-flag", []string{}, "add global flags for the container runtime")
 	flags.BoolVar(&opts.noHosts, "no-hosts", false, "do not override the /etc/hosts file within the container")
 	flags.BoolVar(&opts.noPivot, "no-pivot", false, "do not use pivot root to jail process inside rootfs")
+	flags.StringVar(&opts.stdoutColor, "stdout-color", "default", "`color` of stdout (requires --terminal=false)")
+	flags.StringVar(&opts.stderrColor, "stderr-color", "red", "`color` of stderr (requires --terminal=false)")
 	flags.BoolVarP(&opts.terminal, "terminal", "t", false, "allocate a pseudo-TTY in the container")
 	flags.StringArrayVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
 	flags.StringArrayVar(&opts.mounts, "mount", []string{}, "attach a filesystem mount to the container (default [])")
@@ -154,6 +158,8 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		DropCapabilities: iopts.capDrop,
 		Env:              iopts.env,
 		WorkingDir:       iopts.workingDir,
+		StdoutColor:      iopts.stdoutColor,
+		StderrColor:      iopts.stderrColor,
 	}
 
 	if c.Flag("terminal").Changed {

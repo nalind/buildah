@@ -352,6 +352,10 @@ rootless=%d
 
 	defer b.cleanupTempVolumes()
 
+	if !spec.Process.Terminal {
+		options.Stdout, options.Stderr = highlightedStdoutStderr(options)
+	}
+
 	switch isolation {
 	case define.IsolationOCI:
 		var moreCreateArgs []string

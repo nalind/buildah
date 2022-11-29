@@ -136,6 +136,10 @@ type RunOptions struct {
 	Stdin  io.Reader `json:"-"`
 	Stdout io.Writer `json:"-"`
 	Stderr io.Writer `json:"-"`
+	// Colors to apply to Stdout or Stderr, or os.Stdout or os.Stderr if
+	// Stdout or Stderr are not explicitly specified, if supported.
+	StdoutColor string
+	StderrColor string
 	// Quiet tells the run to turn off output to stdout.
 	Quiet bool
 	// AddCapabilities is a list of capabilities to add to the default set.

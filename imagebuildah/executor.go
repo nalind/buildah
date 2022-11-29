@@ -81,6 +81,7 @@ type Executor struct {
 	in                             io.Reader
 	out                            io.Writer
 	err                            io.Writer
+	errColor, outColor             string
 	signaturePolicyPath            string
 	skipUnusedStages               types.OptionalBool
 	systemContext                  *types.SystemContext
@@ -246,6 +247,8 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		in:                             options.In,
 		out:                            options.Out,
 		err:                            options.Err,
+		outColor:                       options.OutColor,
+		errColor:                       options.ErrColor,
 		reportWriter:                   writer,
 		isolation:                      options.Isolation,
 		namespaceOptions:               options.NamespaceOptions,

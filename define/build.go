@@ -182,6 +182,10 @@ type BuildOptions struct {
 	Out io.Writer
 	// Err is a place where error log messages should be sent.
 	Err io.Writer
+	// OutColor is a color to apply to non-error log messages.
+	OutColor string
+	// ErrColor is a color to apply to error log messages.
+	ErrColor string
 	// SignaturePolicyPath specifies an override location for the signature
 	// policy which should be used for verifying the new image as it is
 	// being written.  Except in specific circumstances, no value should be
