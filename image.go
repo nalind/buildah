@@ -359,6 +359,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	if err != nil {
 		return nil, fmt.Errorf("unable to read layer %q: %w", layerID, err)
 	}
+	finalLayerIsActuallyEmpty := false
 	// Walk the list of parent layers, prepending each as we go.  If we're squashing,
 	// stop at the layer ID of the top layer, which we won't really be using anyway.
 	for layer != nil {
@@ -566,6 +567,18 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		if err = os.Rename(filepath.Join(path, "layer"), finalBlobName); err != nil {
 			return nil, fmt.Errorf("storing %s to file while renaming %q to %q: %w", what, filepath.Join(path, "layer"), finalBlobName, err)
 		}
+		// If the layer is just a block of zeroes of a size that could
+		// plausibly be an empty diff (i.e., if it's several megabytes,
+		// don't bother, because it's highly unlikely), suppress it.
+		if layerID == i.layerID {
+			switch size {
+			case 0, 512, 1024, 2048:
+				if srcHasher.Digest() == digest.Canonical.FromBytes(make([]byte, size)) {
+					finalLayerIsActuallyEmpty = true
+					continue
+				}
+			}
+		}
 		// Add a note in the manifest about the layer.  The blobs are identified by their possibly-
 		// compressed blob digests.
 		olayerDescriptor := v1.Descriptor{
@@ -637,7 +650,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			CreatedBy:  i.createdBy,
 			Author:     oimage.Author,
 			Comment:    comment,
-			EmptyLayer: i.emptyLayer,
+			EmptyLayer: i.emptyLayer || finalLayerIsActuallyEmpty,
 		}
 		oimage.History = append(oimage.History, onews)
 		dnews := docker.V2S2History{
@@ -645,15 +658,15 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			CreatedBy:  i.createdBy,
 			Author:     dimage.Author,
 			Comment:    comment,
-			EmptyLayer: i.emptyLayer,
+			EmptyLayer: i.emptyLayer || finalLayerIsActuallyEmpty,
 		}
 		dimage.History = append(dimage.History, dnews)
 		appendHistory(i.postEmptyLayers)
 
-		// Sanity check that we didn't just create a mismatch between non-empty layers in the
-		// history and the number of diffIDs. Following sanity check is ignored if build history
-		// is disabled explicitly by the user.
-		// Disable sanity check when baseImageHistory is null for docker parity
+		// Confidence check that we didn't just create a mismatch
+		// between non-empty layers in the history and the number of
+		// diffIDs.  Skip the check if we didn't have a build history
+		// to build on.
 		if baseImageHistoryLen != 0 {
 			expectedDiffIDs := expectedOCIDiffIDs(oimage)
 			if len(oimage.RootFS.DiffIDs) != expectedDiffIDs {
