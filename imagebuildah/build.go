@@ -38,6 +38,7 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/openshift/imagebuilder"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/semaphore"
 )
@@ -204,6 +205,9 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	if options.SystemContext == nil {
 		options.SystemContext = &types.SystemContext{}
 	}
+	if options.AdditionalBuildContexts == nil {
+		options.AdditionalBuildContexts = make(map[string]*define.AdditionalBuildContext)
+	}
 
 	if len(options.Platforms) == 0 {
 		options.Platforms = append(options.Platforms, struct{ OS, Arch, Variant string }{
@@ -213,9 +217,6 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	}
 
 	if options.AllPlatforms {
-		if options.AdditionalBuildContexts == nil {
-			options.AdditionalBuildContexts = make(map[string]*define.AdditionalBuildContext)
-		}
 		options.Platforms, err = platformsForBaseImages(ctx, logger, paths, files, options.From, options.Args, options.AdditionalBuildContexts, options.SystemContext)
 		if err != nil {
 			return "", nil, err
@@ -251,11 +252,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			logPrefix = "[" + platforms.Format(platformSpec) + "] "
 		}
 		// Deep copy args to prevent concurrent read/writes over Args.
-		argsCopy := make(map[string]string)
-		for key, value := range options.Args {
-			argsCopy[key] = value
-		}
-		platformOptions.Args = argsCopy
+		platformOptions.Args = maps.Clone(options.Args)
 		builds.Go(func() error {
 			loggerPerPlatform := logger
 			if platformOptions.LogFile != "" && platformOptions.LogSplitByPlatform {
@@ -422,6 +419,24 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 			options.Args["TARGETPLATFORM"] = options.SystemContext.OSChoice + "/" + options.SystemContext.ArchitectureChoice
 			if options.SystemContext.VariantChoice != "" {
 				options.Args["TARGETPLATFORM"] = options.Args["TARGETPLATFORM"] + "/" + options.SystemContext.VariantChoice
+			}
+		}
+	} else {
+		// fill them in using values for the default platform
+		defaultPlatform := platforms.DefaultSpec()
+		if _, ok := options.Args["TARGETOS"]; !ok {
+			options.Args["TARGETOS"] = defaultPlatform.OS
+		}
+		if _, ok := options.Args["TARGETARCH"]; !ok {
+			options.Args["TARGETARCH"] = defaultPlatform.Architecture
+			if defaultPlatform.Variant != "" {
+				options.Args["TARGETVARIANT"] = defaultPlatform.Variant
+			}
+		}
+		if _, ok := options.Args["TARGETPLATFORM"]; !ok {
+			options.Args["TARGETPLATFORM"] = defaultPlatform.OS + "/" + defaultPlatform.Architecture
+			if defaultPlatform.Variant != "" {
+				options.Args["TARGETPLATFORM"] += defaultPlatform.Variant
 			}
 		}
 	}
