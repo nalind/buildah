@@ -1,0 +1,69 @@
+name: Push or Release or Nightly
+
+on:
+  push:
+    branches:
+      - main
+      - 'release-**'
+  release:
+    types:
+      - published
+  schedule:
+    - cron:  '0 0 * * *'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/${{ github.repository }}
+  SOURCE: https://github.com/${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - run: sudo apt-get -y install podman buildah
+
+    - uses: redhat-actions/podman-login@v1.7
+      with:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        registry: ${{ env.REGISTRY }}
+
+    - run: sudo podman run --net=host --rm --privileged ghcr.io/nalind/fedora-qemu-user-static register
+
+    - run: buildah version
+
+    - run: echo FEDORARELEASE=`curl -q https://endoflife.date/api/fedora.json | jq -r '.[0].latest'` | tee -a ${GITHUB_ENV}
+
+    - run: |
+        echo COMMITABBREV=`echo -n ${GITHUB_SHA} | cut -c-10` | tee -a ${GITHUB_ENV}
+        echo COMMITDATE=`git log -1 --format=format:%ct HEAD` | tee -a ${GITHUB_ENV}
+        echo REPOSITORY=${GITHUB_REPOSITORY##*/} | tee -a ${GITHUB_ENV}
+        case "${GITHUB_EVENT_NAME}" in
+        schedule)
+          echo TAGSUFFIX=-nightly | tee -a ${GITHUB_ENV} ;;
+        release)
+          echo TAGSUFFIX=-release | tee -a ${GITHUB_ENV} ;;
+        esac
+
+    - run: mkdir -p ./action-build
+
+    - run: wget -O ./action-build/Containerfile --no-clobber https://github.com/containers/image_build/raw/main/${REPOSITORY}/Containerfile
+
+    - run: wget -O ./action-build/containers.conf --no-clobber https://github.com/containers/image_build/raw/main/${REPOSITORY}/containers.conf
+
+    - run: buildah build --layers --from registry.fedoraproject.org/fedora:${FEDORARELEASE:-latest} --platform linux/amd64,linux/arm64,linux/ppc64le,linux/s390x --manifest ${{ env.IMAGE }}-base --net=host ./action-build
+
+    - run: buildah build --layers --from registry.fedoraproject.org/fedora:${FEDORARELEASE:-latest} --build-context quay.io/build/stable=container-image://${{ env.IMAGE }}-base --platform linux/amd64,linux/arm64,linux/ppc64le,linux/s390x --manifest ${{ env.IMAGE }} --net=host --annotation org.opencontainers.image.revision=${GITHUB_SHA} -f .github/workflows/ghcr_image.Containerfile .
+
+    - run: buildah manifest push --format oci --all ${{ env.IMAGE }} docker://${{ env.IMAGE }}:${{ github.ref_name }}-$(TZ=UTC date +%Y-%m-%d-%H-%M -d @${COMMITDATE})-${{ env.COMMITABBREV }}${TAGSUFFIX}
+
+    - run: buildah manifest push --format oci --all ${{ env.IMAGE }} docker://${{ env.IMAGE }}:${{ github.ref_name }}
+
+    - run: |
+        if test ${{ github.ref_name }} == main ; then
+          buildah manifest push --format oci --all ${{ env.IMAGE }} docker://${{ env.IMAGE }}
+        fi
