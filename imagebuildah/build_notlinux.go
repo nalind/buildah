@@ -15,6 +15,7 @@ import (
 	"go.podman.io/buildah/copier"
 	"go.podman.io/buildah/define"
 	"go.podman.io/buildah/internal/tmpdir"
+	"go.podman.io/buildah/pkg/parse"
 	"go.podman.io/storage"
 	"go.podman.io/storage/pkg/idtools"
 )
@@ -57,9 +58,14 @@ func platformSetupContextDirectoryOverlay(store storage.Store, options *define.B
 		return "", "", "", false, nil, fmt.Errorf("creating a temporary directory under %s: %w", tmpDir, err)
 	}
 	// copy the contents of the default build context to the new location so that it can be written to more or less safely
+	excludes, _, err := parse.ContainerIgnoreFile(contextDirectoryAbsolute, options.IgnoreFile, nil)
+	if err != nil {
+		return "", "", "", false, nil, fmt.Errorf("parsing ignore file under context directory %s: %w", contextDirectoryAbsolute, err)
+	}
 	getOptions := copier.GetOptions{
 		ChownDirs:  &idtools.IDPair{UID: 0, GID: 0},
 		ChownFiles: &idtools.IDPair{UID: 0, GID: 0},
+		Excludes:   excludes,
 	}
 	var wg sync.WaitGroup
 	var putErr, getErr error
