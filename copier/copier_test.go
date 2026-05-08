@@ -492,7 +492,7 @@ func testPut(t *testing.T) {
 				if !reflect.DeepEqual(expected, fileList) && reflect.DeepEqual(moddedEnumeratedFiles(expected), moddedEnumeratedFiles(fileList)) {
 					logrus.Warn("chmod() lost some bits and possibly timestamps on symlinks, otherwise we match the source archive")
 				} else {
-					require.Equal(t, expected, fileList, "list of files in context directory for archive %q under topdir %q should match the archived used to populate it", testArchives[i].name, topdir)
+					require.Equalf(t, expected, fileList, "list of files in context directory for archive %q under topdir %q should match the archived used to populate it", testArchives[i].name, topdir)
 				}
 			})
 		}
@@ -629,10 +629,10 @@ func testPut(t *testing.T) {
 					err := Put(tmp, tmp, putOptions, bytes.NewReader(archive))
 					require.Nilf(t, err, "unexpected error writing sample file", err)
 					st, err := os.Stat(filepath.Join(tmp, "test"))
-					require.Nilf(t, err, "unexpected error checking permissions of file", err)
-					assert.Equalf(t, stripSetuidBit, st.Mode()&os.ModeSetuid == 0, "setuid bit was not set/stripped correctly")
-					assert.Equalf(t, stripSetgidBit, st.Mode()&os.ModeSetgid == 0, "setgid bit was not set/stripped correctly")
-					assert.Equalf(t, stripStickyBit, st.Mode()&os.ModeSticky == 0, "sticky bit was not set/stripped correctly")
+					require.Nil(t, err, "unexpected error checking permissions of file", err)
+					assert.Equal(t, stripSetuidBit, st.Mode()&os.ModeSetuid == 0, "setuid bit was not set/stripped correctly")
+					assert.Equal(t, stripSetgidBit, st.Mode()&os.ModeSetgid == 0, "setgid bit was not set/stripped correctly")
+					assert.Equal(t, stripStickyBit, st.Mode()&os.ModeSticky == 0, "sticky bit was not set/stripped correctly")
 				})
 			}
 		}
@@ -704,8 +704,8 @@ func testStat(t *testing.T) {
 							matches := 0
 							for _, glob := range st.Globbed {
 								matches++
-								require.Equal(t, st.Glob, glob, "expected entry for %q", st.Glob)
-								require.NotNil(t, st.Results[glob], "%q globbed %q, but there are no results for it", st.Glob, glob)
+								require.Equalf(t, st.Glob, glob, "expected entry for %q", st.Glob)
+								require.NotNilf(t, st.Results[glob], "%q globbed %q, but there are no results for it", st.Glob, glob)
 								toStat := glob
 								if !absolute {
 									toStat = filepath.Join(root, topdir, name)
@@ -720,24 +720,24 @@ func testStat(t *testing.T) {
 										testItem.Size = int64(len(actualContent))
 									}
 									checkStatInfoOwnership(t, result)
-									require.Equal(t, testItem.Size, result.Size, "unexpected size difference for %q", name)
-									require.True(t, result.IsRegular, "expected %q.IsRegular to be true", glob)
-									require.False(t, result.IsDir, "expected %q.IsDir to be false", glob)
-									require.False(t, result.IsSymlink, "expected %q.IsSymlink to be false", glob)
+									require.Equalf(t, testItem.Size, result.Size, "unexpected size difference for %q", name)
+									require.Truef(t, result.IsRegular, "expected %q.IsRegular to be true", glob)
+									require.Falsef(t, result.IsDir, "expected %q.IsDir to be false", glob)
+									require.Falsef(t, result.IsSymlink, "expected %q.IsSymlink to be false", glob)
 								case tar.TypeDir:
-									require.False(t, result.IsRegular, "expected %q.IsRegular to be false", glob)
-									require.True(t, result.IsDir, "expected %q.IsDir to be true", glob)
-									require.False(t, result.IsSymlink, "expected %q.IsSymlink to be false", glob)
+									require.Falsef(t, result.IsRegular, "expected %q.IsRegular to be false", glob)
+									require.Truef(t, result.IsDir, "expected %q.IsDir to be true", glob)
+									require.Falsef(t, result.IsSymlink, "expected %q.IsSymlink to be false", glob)
 								case tar.TypeSymlink:
-									require.True(t, result.IsSymlink, "%q is supposed to be a symbolic link, but is not", name)
-									require.Equal(t, filepath.FromSlash(testItem.Linkname), result.ImmediateTarget, "%q is supposed to point to %q, but points to %q", glob, testItem.Linkname, result.ImmediateTarget)
+									require.Truef(t, result.IsSymlink, "%q is supposed to be a symbolic link, but is not", name)
+									require.Equalf(t, filepath.FromSlash(testItem.Linkname), result.ImmediateTarget, "%q is supposed to point to %q, but points to %q", glob, testItem.Linkname, result.ImmediateTarget)
 								case tar.TypeBlock, tar.TypeChar:
-									require.False(t, result.IsRegular, "%q is a regular file, but is not supposed to be", name)
-									require.False(t, result.IsDir, "%q is a directory, but is not supposed to be", name)
-									require.False(t, result.IsSymlink, "%q is not supposed to be a symbolic link, but appears to be one", name)
+									require.Falsef(t, result.IsRegular, "%q is a regular file, but is not supposed to be", name)
+									require.Falsef(t, result.IsDir, "%q is a directory, but is not supposed to be", name)
+									require.Falsef(t, result.IsSymlink, "%q is not supposed to be a symbolic link, but appears to be one", name)
 								}
 							}
-							require.Equal(t, 1, matches, "non-glob %q matched %d items, not exactly one", name, matches)
+							require.Equalf(t, 1, matches, "non-glob %q matched %d items, not exactly one", name, matches)
 						}
 					})
 				}
@@ -845,7 +845,7 @@ func testGetSingle(t *testing.T) {
 												if expectedMode != hdr.Mode && expectedMode&testModeMask == hdr.Mode&testModeMask {
 													logrus.Warnf("chmod() lost some bits: expected 0%o, got 0%o", expectedMode, hdr.Mode)
 												} else {
-													assert.Equal(t, expectedMode, hdr.Mode, "expected item named %q %sto have mode 0%o, got 0%o", hdr.Name, modifier, expectedMode, hdr.Mode)
+													assert.Equalf(t, expectedMode, hdr.Mode, "expected item named %q %sto have mode 0%o, got 0%o", hdr.Name, modifier, expectedMode, hdr.Mode)
 												}
 												hdr, err = tr.Next()
 											}
@@ -1638,7 +1638,7 @@ func testGetMultiple(t *testing.T) {
 					assert.ErrorIs(t, err, io.EOF, "expected EOF at end of archive")
 					wg.Wait()
 					assert.NoErrorf(t, getErr, "unexpected error from Get(%q)", testCase.pattern)
-					assert.Equal(t, expectedContents, actualContents, "Get(%q,excludes=%v) didn't produce the right set of items", testCase.pattern, excludes)
+					assert.Equalf(t, expectedContents, actualContents, "Get(%q,excludes=%v) didn't produce the right set of items", testCase.pattern, excludes)
 
 					expectedSymlinks := testCase.expectedSymlinks
 					if expectedSymlinks == nil {
@@ -2024,7 +2024,7 @@ func TestCleanerSubdirectory(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase[0], func(t *testing.T) {
 			cleaner := cleanerReldirectory(filepath.FromSlash(testCase[0]))
-			assert.Equal(t, testCase[1], filepath.ToSlash(cleaner), "expected to get %q, got %q", testCase[1], cleaner)
+			assert.Equalf(t, testCase[1], filepath.ToSlash(cleaner), "expected to get %q, got %q", testCase[1], cleaner)
 		})
 	}
 }
@@ -2048,7 +2048,7 @@ func TestHandleRename(t *testing.T) {
 	for i, testCase := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			renamed := handleRename(renames, testCase[0])
-			assert.Equal(t, testCase[1], renamed, "expected to get %q, got %q", testCase[1], renamed)
+			assert.Equalf(t, testCase[1], renamed, "expected to get %q, got %q", testCase[1], renamed)
 		})
 	}
 }
@@ -2358,7 +2358,7 @@ func TestExtendedGlob(t *testing.T) {
 	expected2 = append(expected2, filepath.Join(tmpdir, "d", "d.dat"))
 	matched, err := extendedGlob(filepath.Join(tmpdir, "**", "*.dat"))
 	require.NoError(t, err, "globbing")
-	require.ElementsMatchf(t, expected1, matched, "**/*.dat")
+	require.ElementsMatch(t, expected1, matched, "**/*.dat")
 	matched, err = extendedGlob(filepath.Join(tmpdir, "**", "d", "*.dat"))
 	require.NoError(t, err, "globbing")
 	require.ElementsMatch(t, expected2, matched, "**/d/*.dat")
@@ -2525,7 +2525,7 @@ func testEnsure(t *testing.T) {
 			for _, item := range testCases[i].options.Paths {
 				target := filepath.Join(tmpdir, testCases[i].subdir, item.Path)
 				st, err := os.Stat(target)
-				require.NoError(t, err, "we supposedly created %q", item.Path)
+				require.NoErrorf(t, err, "we supposedly created %q", item.Path)
 				if item.Chmod != nil {
 					assert.Equalf(t, *item.Chmod, st.Mode().Perm(), "permissions look wrong on %q", item.Path)
 				}
@@ -2538,7 +2538,7 @@ func testEnsure(t *testing.T) {
 				if item.ModTime != nil {
 					assert.Equalf(t, item.ModTime.Unix(), st.ModTime().Unix(), "datestamp looks wrong on %q", item.Path)
 				} else {
-					assert.True(t, !testStarted.After(st.ModTime()), "datestamp is too old on %q: %v < %v", st.ModTime(), testStarted)
+					assert.Truef(t, !testStarted.After(st.ModTime()), "datestamp is too old on %q: %v < %v", target, st.ModTime(), testStarted)
 				}
 			}
 		})
@@ -3024,11 +3024,11 @@ func TestCannotChangeMultipleRequestsWithDifferentChroot(t *testing.T) {
 
 	require.NoError(t, encoder.Encode(&req), "failed to send first request to copier")
 	resp := receiveResponse()
-	require.Empty(t, resp.Error, "first request returned an error: %s", resp.Error)
+	require.Emptyf(t, resp.Error, "first request returned an error: %s", resp.Error)
 
 	require.NoError(t, encoder.Encode(&req), "failed to send second request to copier")
 	resp = receiveResponse()
-	require.Empty(t, resp.Error, "second request returned an error: %s", resp.Error)
+	require.Emptyf(t, resp.Error, "second request returned an error: %s", resp.Error)
 
 	require.NoError(t, encoder.Encode(&request{Request: requestQuit}))
 	require.NoError(t, cmd.Wait())
@@ -3166,7 +3166,7 @@ func testPutTimestamp(t *testing.T) {
 		for _, name := range []string{"subdir", "subdir/file.txt"} {
 			info, err := os.Lstat(filepath.Join(root, name))
 			require.NoError(t, err)
-			assert.Equal(t, override.Unix(), info.ModTime().Unix(), "%q should have overridden timestamp", name)
+			assert.Equalf(t, override.Unix(), info.ModTime().Unix(), "%q should have overridden timestamp", name)
 		}
 	})
 
@@ -3182,7 +3182,7 @@ func testPutTimestamp(t *testing.T) {
 		for _, name := range []string{"dest", "dest/nested", "dest/nested/a", "dest/nested/a/b", "dest/nested/a/b/file.txt"} {
 			info, err := os.Lstat(filepath.Join(root, name))
 			require.NoError(t, err)
-			assert.Equal(t, override.Unix(), info.ModTime().Unix(), "%q should have overridden timestamp", name)
+			assert.Equalf(t, override.Unix(), info.ModTime().Unix(), "%q should have overridden timestamp", name)
 		}
 	})
 
