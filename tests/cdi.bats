@@ -44,3 +44,30 @@ load helpers
   cid="$output"
   run_buildah run --cdi-config-dir=$cdidir --device=containers.github.io/sample=all "$cid" cat /dev/containers-cdi.yaml
 }
+
+@test "info with CDI" {
+  skip_if_chroot
+  _prefetch busybox
+  cdidir=${TEST_SCRATCH_DIR}/cdi-config-dir
+  mkdir -p $cdidir
+  sed -e s:@@hostcdipath@@:$cdidir:g $BUDFILES/cdi/containers-cdi.yaml > $cdidir/containers-cdi.yaml
+  chmod 644 $cdidir/containers-cdi.yaml
+  cat > ${TEST_SCRATCH_DIR}/containers.conf <<-EOF
+  [engine]
+  cdi_spec_dirs = ["$cdidir"]
+EOF
+  echo === Begin CDI configuration in $cdidir/containers-cdi.yaml ===
+  cat $cdidir/containers-cdi.yaml
+  echo === End CDI configuration ===
+  CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah info
+  info="$output"
+  run jq .cdi <<< "$info"
+  assert $status -eq 0
+  cdi="$output"
+  echo === Begin CDI section of info output ===
+  echo "$cdi"
+  echo === End CDI section of info output ===
+  run jq -r '.vendors.["containers.github.io"].[0].["devices"].[0].["containerEdits"].["mounts"].[0].["containerPath"]' <<< "$cdi"
+  assert "$output" = "/dev/containers-cdi.yaml"
+  assert $status -eq 0
+}
