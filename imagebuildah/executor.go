@@ -40,8 +40,16 @@ import (
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"
 	"go.podman.io/storage/pkg/archive"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 )
+
+type additionalBuildContext struct {
+	define.AdditionalBuildContext
+	// downloadedTempDir is the temporary directory created for the additional build context.
+	// It should be removed when the build ends.
+	downloadedTempDir string
+}
 
 // builtinAllowedBuildArgs is list of built-in allowed build args.  Normally we
 // complain if we're given values for arguments which have no corresponding ARG
@@ -161,7 +169,7 @@ type executor struct {
 	imageInfoLock                           sync.Mutex
 	imageInfoCache                          map[string]imageTypeAndHistoryAndDiffIDs
 	fromOverride                            string
-	additionalBuildContexts                 map[string]*define.AdditionalBuildContext
+	additionalBuildContexts                 map[string]*additionalBuildContext
 	manifest                                string
 	secrets                                 map[string]define.Secret
 	sshsources                              map[string]*sshagent.Source
@@ -268,6 +276,11 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		buildOutputs = append(buildOutputs, options.BuildOutput) //nolint:staticcheck
 	}
 
+	wrappedAdditionalBuildContexts := make(map[string]*additionalBuildContext, len(options.AdditionalBuildContexts))
+	for name, ctx := range options.AdditionalBuildContexts {
+		wrappedAdditionalBuildContexts[name] = &additionalBuildContext{AdditionalBuildContext: *ctx}
+	}
+
 	exec := executor{
 		args:                                    options.Args,
 		cacheFrom:                               options.CacheFrom,
@@ -358,7 +371,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		rusageLogFile:                           rusageLogFile,
 		imageInfoCache:                          make(map[string]imageTypeAndHistoryAndDiffIDs),
 		fromOverride:                            options.From,
-		additionalBuildContexts:                 options.AdditionalBuildContexts,
+		additionalBuildContexts:                 wrappedAdditionalBuildContexts,
 		manifest:                                options.Manifest,
 		secrets:                                 secrets,
 		sshsources:                              sshsources,
@@ -856,6 +869,21 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			}
 		}
 		cleanupImages = nil
+
+		var g errgroup.Group
+		for _, additionalBuildContext := range b.additionalBuildContexts {
+			if additionalBuildContext.downloadedTempDir != "" {
+				dir := additionalBuildContext.downloadedTempDir
+				g.Go(func() error {
+					logrus.Debugf("Removing additional build context temp dir %q", dir)
+					return os.RemoveAll(dir)
+				})
+			}
+		}
+		if err := g.Wait(); err != nil {
+			logrus.Debugf("Failed to cleanup additional build context temp dir: %v", err)
+			lastErr = err
+		}
 
 		if b.rusageLogFile != nil && b.rusageLogFile != b.out {
 			// we deliberately ignore the error here, as this
