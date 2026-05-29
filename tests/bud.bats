@@ -8184,26 +8184,27 @@ _EOF
 }
 
 @test "bud with ADD with git repository source escape directory" {
-  skip 'TEMPORARY: needs a (git config user.{email,name})'
-
   _prefetch alpine
 
   local secretdir=${TEST_SCRATCH_DIR}/secretdir
   mkdir -p ${secretdir}
   echo mysecret > ${secretdir}/secretfile
 
-  local repodir=${TEST_SCRATCH_DIR}/repo
-  mkdir -p ${repodir}
-  git -C ${repodir} init -b main
-  ln -s / ${repodir}/proj
-  git -C ${repodir} add proj
-  git -C ${repodir} commit -m "initial commit"
-
-  local baredir=${TEST_SCRATCH_DIR}/repository
-  mkdir -p ${baredir}
-  git clone --bare ${repodir} ${baredir}/test-bug.git
-
-  starthttpd /git/=${baredir}:"git http-backend":GIT_HTTP_EXPORT_ALL=1:GIT_PROJECT_ROOT=${baredir} ${baredir}
+  # Archive generated with:
+  #   d=$(mktemp -d) && mkdir "$d/repo"
+  #   git -C "$d/repo" init -b main
+  #   git -C "$d/repo" config user.email "test@example.com"
+  #   git -C "$d/repo" config user.name "Test User"
+  #   ln -s / "$d/repo/proj"
+  #   git -C "$d/repo" add proj
+  #   git -C "$d/repo" commit -m "initial commit"
+  #   git clone --bare "$d/repo" "$d/test-bug.git"
+  #   tar czf tests/git-daemon/escape-directory.tar.gz --owner=root:0 --group=root:0 -C "$d/test-bug.git" .
+  #   rm -rf "$d"
+  local repodir=${TEST_SCRATCH_DIR}/repository
+  mkdir -p ${repodir}/test-bug.git
+  tar --no-same-owner -C ${repodir}/test-bug.git -xz < ${TEST_SOURCES}/git-daemon/escape-directory.tar.gz
+  starthttpd /git/=${repodir}:"git http-backend":GIT_HTTP_EXPORT_ALL=1:GIT_PROJECT_ROOT=${repodir} ${repodir}
 
   local contextdir=${TEST_SCRATCH_DIR}/add-git
   mkdir -p $contextdir
@@ -8215,6 +8216,7 @@ _EOF
 
   run_buildah 125 build -f $contextdir/Containerfile -t escape-image --no-cache $contextdir
   assert "$output" !~ "mysecret"
+  expect_output --substring "no such file or directory"
 }
 
 @test "bud with http context symlinked Dockerfile does not write through symlink on fallback" {
