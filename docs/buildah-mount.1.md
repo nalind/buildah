@@ -63,4 +63,4 @@ $ buildah commit  working-container newimage
 ```
 
 ## SEE ALSO
-buildah(1), buildah-unshare(1), buildah-umount(1)
+buildah(1), buildah-umount(1), buildah-unshare(1)
