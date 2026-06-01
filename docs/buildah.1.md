@@ -173,6 +173,7 @@ Buildah can set up environment variables from the env entry in the [engine] tabl
 | manifest   | [buildah-manifest(1)](buildah-manifest.1.md)     | Create and manipulate manifest lists and image indexes.                                              |
 | mkcw       | [buildah-mkcw(1)](buildah-mkcw.1.md)             | Convert a conventional container image into a confidential workload image.
 | mount      | [buildah-mount(1)](buildah-mount.1.md)           | Mount the working container's root filesystem.                                                       |
+| mount-sshfs | [buildah-mount-sshfs(1)](buildah-mount-sshfs.1.md) | Mount a container's or image's root filesystem using sshfs.                                          |
 | prune      | [buildah-prune(1)](buildah-prune.1.md)           | Cleanup intermediate images as well as build and mount cache.                                        |
 | pull       | [buildah-pull(1)](buildah-pull.1.md)             | Pull an image from the specified location.                                                           |
 | push       | [buildah-push(1)](buildah-push.1.md)             | Push an image from local storage to elsewhere.                                                       |
@@ -184,6 +185,7 @@ Buildah can set up environment variables from the env entry in the [engine] tabl
 | source     | [buildah-source(1)](buildah-source.1.md)         | Create, push, pull and manage source images and associated source artifacts.                         |
 | tag        | [buildah-tag(1)](buildah-tag.1.md)               | Add an additional name to a local image.                                                             |
 | umount     | [buildah-umount(1)](buildah-umount.1.md)         | Unmount a working container's root file system.                                                      |
+| umount-sshfs | [buildah-umount-sshfs(1)](buildah-umount-sshfs.1.md) | Unmount a filesystem which was mounted by **buildah mount-sshfs**.                             |
 | unshare    | [buildah-unshare(1)](buildah-unshare.1.md)       | Launch a command in a user namespace with modified ID mappings.                                      |
 | version    | [buildah-version(1)](buildah-version.1.md)       | Display the Buildah Version Information                                                              |
 

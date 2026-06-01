@@ -24,4 +24,4 @@ buildah umount containerID1 containerID2 containerID3
 buildah umount --all
 
 ## SEE ALSO
-buildah(1), buildah-umount(1)
+buildah(1), buildah-umount(1), buildah-umount-sshfs(1), buildah-unshare(1)
