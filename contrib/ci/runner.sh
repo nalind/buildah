@@ -45,7 +45,7 @@ if [[ "$TEST" == "conformance" ]]; then
             sudo dnf install -y docker || sudo dnf install -y moby-engine
             ;;
         debian)
-            sudo apt-get install -y --no-install-recommends docker.io
+            sudo dpkg -i /var/cache/download/containerd.io*.deb /var/cache/download/docker-ce*.deb
             ;;
     esac
     sudo systemctl start docker || true
