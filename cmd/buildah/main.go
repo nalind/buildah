@@ -272,6 +272,7 @@ func main() {
 	rmInit()
 	rpcInit()
 	runInit()
+	sftpInit()
 	sourceInit()
 	tagInit()
 	umountInit()

@@ -133,6 +133,14 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		return fmt.Errorf("reading build container %q: %w", name, err)
 	}
 
+	cdir, err := store.ContainerDirectory(builder.ContainerID)
+	if err != nil {
+		return fmt.Errorf("finding build container state directory for %q: %w", name, err)
+	}
+	if err := flagServingSFTP(cdir); err != nil {
+		return fmt.Errorf(`unable to use "buildah run" while container appears to be busy: %v`, err)
+	}
+
 	isolation, err := parse.IsolationOption(c.Flag("isolation").Value.String())
 	if err != nil {
 		return err

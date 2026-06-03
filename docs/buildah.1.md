@@ -180,6 +180,7 @@ Buildah can set up environment variables from the env entry in the [engine] tabl
 | rm         | [buildah-rm(1)](buildah-rm.1.md)                 | Removes one or more working containers.                                                              |
 | rmi        | [buildah-rmi(1)](buildah-rmi.1.md)               | Removes one or more images.                                                                          |
 | run        | [buildah-run(1)](buildah-run.1.md)               | Run a command inside of the container.                                                               |
+| serve-sftp | [buildah-serve-sftp(1)](buildah-serve-sftp.1.md) | Share a container's or image's root filesystem using SFTP.
 | source     | [buildah-source(1)](buildah-source.1.md)         | Create, push, pull and manage source images and associated source artifacts.                         |
 | tag        | [buildah-tag(1)](buildah-tag.1.md)               | Add an additional name to a local image.                                                             |
 | umount     | [buildah-umount(1)](buildah-umount.1.md)         | Unmount a working container's root file system.                                                      |
