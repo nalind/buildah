@@ -33,9 +33,9 @@ load helpers
 }
 
 @test "overlay source permissions and owners" {
-  if test \! -e /usr/bin/fuse-overlayfs -a "$BUILDAH_ISOLATION" = "rootless"; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION" and no /usr/bin/fuse-overlayfs present
-  elif test "$STORAGE_DRIVER" = "vfs"; then
+  skip_if_rootless_environment "unprivileged tests can't easily change ownership of test directories"
+
+  if test "$STORAGE_DRIVER" = "vfs"; then
     skip "skipping overlay test because \$STORAGE_DRIVER = $STORAGE_DRIVER"
   fi
   image=alpine
@@ -55,7 +55,7 @@ load helpers
   run_buildah run $cid touch /tmp/test/bar
   run_buildah run $cid rm /tmp/test/foo
 
-  # This should fail, second runs of containers go back to original
+  # This should fail, second runs of containers get a fresh overlay
   run_buildah 1 run $cid ls /tmp/test/bar
 
   # This should fail since /tmp/test was an overlay, not a bind mount
