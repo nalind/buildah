@@ -231,7 +231,7 @@ idmapping_check_permission() {
     expect_output "0:0 4700" "stat(someotherfile), in container test"
 
     # Check that the copied file has the right permissions on host.
-    run_buildah mount "$ctr"
+    run_buildah_mount "$ctr"
     mnt="$output"
     run stat -c '%u:%g %a' "$mnt"/somedir/someotherfile
     assert "$status" -eq 0 "status of stat $mnt/somedir/someotherfile"
@@ -447,7 +447,7 @@ _EOF
 	run_buildah commit --squash $WITH_POLICY_JSON --rm "$cid" squashed
 	run_buildah from --quiet squashed
 	cid=$output
-	run_buildah mount $cid
+	run_buildah_mount $cid
 	mountpoint=$output
 	run stat -c %u:%g $mountpoint/randomfile
 	[ "$status" -eq 0 ]

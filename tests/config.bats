@@ -220,7 +220,7 @@ function check_matrix() {
   check_matrix 'Config.Labels.LABEL' '<no value>'
 }
 
-@test "config" {
+@test "config flags" {
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config \
@@ -370,7 +370,7 @@ EOF
   expect_output --substring "combined=bar/bar1"
 }
 
-@test "user" {
+@test "config user" {
   _prefetch alpine
   run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
   cid=$output
@@ -387,7 +387,7 @@ EOF
   expect_output "$bndoutput"
 }
 
-@test "remove configs using '-' syntax" {
+@test "config remove configs using '-' syntax" {
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config \

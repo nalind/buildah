@@ -26,9 +26,10 @@ function check_lengths() {
 		run_buildah copy "$cid" ${TEST_SCRATCH_DIR}/randomfile /layer${stage}
 		image=stage${stage}
 		if test $stage -eq ${remove[0]} ; then
-			run_buildah mount "$cid"
+			run_buildah_mount "$cid"
 			mountpoint=$output
 			rm -f ${mountpoint}/layer${remove[1]}
+			run_buildah_umount "$cid"
 		fi
 		run_buildah commit $WITH_POLICY_JSON --rm "$cid" ${image}
                 check_lengths $image $stage
@@ -41,7 +42,7 @@ function check_lengths() {
 
 	run_buildah from --quiet squashed
 	cid=$output
-	run_buildah mount $cid
+	run_buildah_mount $cid
 	mountpoint=$output
 	for stage in $(seq 10) ; do
 		if test $stage -eq ${remove[1]} ; then
@@ -80,7 +81,7 @@ function check_lengths() {
 
 	run_buildah from --quiet squashed
 	cid=$output
-	run_buildah mount $cid
+	run_buildah_mount $cid
 	mountpoint=$output
 	for stage in $(seq 10) ; do
 		cmp $mountpoint/layer${stage} ${TEST_SCRATCH_DIR}/randomfile

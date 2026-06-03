@@ -10,13 +10,13 @@ function check_imgtype() {
   image="$1"
 
   # Second argument: expected image type, 'oci' or 'docker'
-  imgtype_oci="application/vnd.oci.image.manifest.v1+json"
-  imgtype_dkr="application/vnd.docker.distribution.manifest.v2+json"
+  local imgtype_oci="application/vnd.oci.image.manifest.v1+json"
+  local imgtype_dkr="application/vnd.docker.distribution.manifest.v2+json"
 
   expect=""
   case "$2" in
-      oci)    want=$imgtype_oci; reject=$imgtype_dkr;;
-      docker) want=$imgtype_dkr; reject=$imgtype_oci;;
+      oci)    local want=$imgtype_oci; local reject=$imgtype_dkr;;
+      docker) local want=$imgtype_dkr; local reject=$imgtype_oci;;
       *)      die "Internal error: unknown image type '$2'";;
   esac
 
@@ -46,7 +46,6 @@ function check_imgtype() {
 
 
 @test "write-formats" {
-  skip_if_rootless_environment
   run_buildah from --pull=false $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah commit $WITH_POLICY_JSON $cid scratch-image-default
@@ -59,7 +58,6 @@ function check_imgtype() {
 }
 
 @test "bud-formats" {
-  skip_if_rootless_environment
   run_buildah build-using-dockerfile $WITH_POLICY_JSON -t scratch-image-default -f Containerfile $BUDFILES/from-scratch
   run_buildah build-using-dockerfile --format docker $WITH_POLICY_JSON -t scratch-image-docker -f Containerfile $BUDFILES/from-scratch
   run_buildah build-using-dockerfile --format oci $WITH_POLICY_JSON -t scratch-image-oci -f Containerfile $BUDFILES/from-scratch

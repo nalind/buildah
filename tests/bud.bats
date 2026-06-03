@@ -1055,11 +1055,11 @@ this is the output of test12"
   run_buildah from --pull=false testbud2
   cid=$output
 
-  run_buildah mount $cid
+  run_buildah_mount $cid
   mnt=$output
   run find $mnt -printf "%P(%l)\n"
   filelist=$(LC_ALL=C sort <<<"$output")
-  run_buildah umount $cid
+  run_buildah_umount $cid
 
   # Format is: filename, and, in parentheses, symlink target (usually empty)
   # The list below has been painstakingly crafted; please be careful if
@@ -2432,7 +2432,7 @@ _EOF
 
   run_buildah from --quiet $WITH_POLICY_JSON test3
   ctr=$output
-  run_buildah mount ${ctr}
+  run_buildah_mount ${ctr}
   mnt=$output
   test -e $mnt/uuid
   test -e $mnt/date
@@ -2528,7 +2528,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds/Dockerfile.extended $BUDFILES/multi-stage-builds
   run_buildah from $WITH_POLICY_JSON ${target}
   cid="$output"
-  run_buildah mount "$cid"
+  run_buildah_mount "$cid"
   root="$output"
   # cache should have used this one
   test -r "$root"/tmp/preCommit
@@ -3053,11 +3053,12 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/from-multiple-files/Dockerfile1.scratch -f $BUDFILES/from-multiple-files/Dockerfile2.nofrom $BUDFILES/from-multiple-files
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   cmp $root/Dockerfile1 $BUDFILES/from-multiple-files/Dockerfile1.scratch
   cmp $root/Dockerfile2.nofrom $BUDFILES/from-multiple-files/Dockerfile2.nofrom
   test ! -s $root/etc/passwd
+  run_buildah_umount ${cid}
   run_buildah rm ${cid}
   run_buildah rmi -a
 
@@ -3066,7 +3067,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile1.alpine -f Dockerfile2.nofrom $BUDFILES/from-multiple-files
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   cmp $root/Dockerfile1 $BUDFILES/from-multiple-files/Dockerfile1.alpine
   cmp $root/Dockerfile2.nofrom $BUDFILES/from-multiple-files/Dockerfile2.nofrom
@@ -3079,11 +3080,12 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile1.scratch -f Dockerfile2.withfrom $BUDFILES/from-multiple-files
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   test ! -s $root/Dockerfile1
   cmp $root/Dockerfile2.withfrom $BUDFILES/from-multiple-files/Dockerfile2.withfrom
   test -s $root/etc/passwd
+  run_buildah_umount ${cid}
   run_buildah rm ${cid}
   run_buildah rmi -a
 
@@ -3092,7 +3094,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile1.alpine -f Dockerfile2.withfrom $BUDFILES/from-multiple-files
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   test ! -s $root/Dockerfile1
   cmp $root/Dockerfile2.withfrom $BUDFILES/from-multiple-files/Dockerfile2.withfrom
@@ -3364,10 +3366,11 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds/Dockerfile.index $BUDFILES/multi-stage-builds
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   cmp $root/Dockerfile.index $BUDFILES/multi-stage-builds/Dockerfile.index
   test -s $root/etc/passwd
+  run_buildah_umount ${cid}
   run_buildah rm ${cid}
   run_buildah rmi -a
 
@@ -3376,10 +3379,11 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile.name $BUDFILES/multi-stage-builds
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   cmp $root/Dockerfile.name $BUDFILES/multi-stage-builds/Dockerfile.name
   test ! -s $root/etc/passwd
+  run_buildah_umount ${cid}
   run_buildah rm ${cid}
   run_buildah rmi -a
 
@@ -3387,7 +3391,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds/Dockerfile.mixed $BUDFILES/multi-stage-builds
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   cmp $root/Dockerfile.name $BUDFILES/multi-stage-builds/Dockerfile.name
   cmp $root/Dockerfile.index $BUDFILES/multi-stage-builds/Dockerfile.index
@@ -3400,10 +3404,11 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds-small-as/Dockerfile.index $BUDFILES/multi-stage-builds-small-as
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   cmp $root/Dockerfile.index $BUDFILES/multi-stage-builds-small-as/Dockerfile.index
   test -s $root/etc/passwd
+  run_buildah_umount ${cid}
   run_buildah rm ${cid}
   run_buildah rmi -a
 
@@ -3412,10 +3417,11 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile.name $BUDFILES/multi-stage-builds-small-as
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   cmp $root/Dockerfile.name $BUDFILES/multi-stage-builds-small-as/Dockerfile.name
   test ! -s $root/etc/passwd
+  run_buildah_umount ${cid}
   run_buildah rm ${cid}
   run_buildah rmi -a
 
@@ -3424,7 +3430,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds-small-as/Dockerfile.mixed $BUDFILES/multi-stage-builds-small-as
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   cmp $root/Dockerfile.name $BUDFILES/multi-stage-builds-small-as/Dockerfile.name
   cmp $root/Dockerfile.index $BUDFILES/multi-stage-builds-small-as/Dockerfile.index
@@ -3442,7 +3448,7 @@ _EOF
       run_buildah build $WITH_POLICY_JSON -t ${target} ${layers} ${compat} $BUDFILES/preserve-volumes
       run_buildah from --quiet ${target}
       cid=$output
-      run_buildah mount ${cid}
+      run_buildah_mount ${cid}
       root=$output
       # these files were created before VOLUME instructions froze the directories that contained them
       test -s $root/vol/subvol/subsubvol/subsubvolfile
@@ -3459,6 +3465,7 @@ _EOF
       # and these were ADDed
       test -s $root/vol/Dockerfile
       test -s $root/vol/Dockerfile2
+      run_buildah_umount ${cid}
       run_buildah rm ${cid}
       run_buildah rmi ${target}
     done
@@ -3698,7 +3705,7 @@ function validate_instance_compression {
       run_buildah build $WITH_POLICY_JSON -t ${target} ${layers} ${compat} $BUDFILES/volume-perms
       run_buildah from --quiet $WITH_POLICY_JSON ${target}
       cid=$output
-      run_buildah mount ${cid}
+      run_buildah_mount ${cid}
       root=$output
       if test "$compat" != "" ; then
         # true, /vol/subvol should not have contents, and its permissions should be the default 0755
@@ -3715,6 +3722,7 @@ function validate_instance_compression {
         assert "$status" -eq 0 "status code from stat $root/vol/subvol"
         expect_output "711" "stat($root/vol/subvol)"
       fi
+      run_buildah_umount ${cid}
       run_buildah rm ${cid}
       run_buildah rmi ${target}
     done
@@ -3760,7 +3768,7 @@ function validate_instance_compression {
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile2.glob $BUDFILES/from-multiple-files
   run_buildah from --quiet $WITH_POLICY_JSON ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   cmp $root/Dockerfile1.alpine $BUDFILES/from-multiple-files/Dockerfile1.alpine
   cmp $root/Dockerfile2.withfrom $BUDFILES/from-multiple-files/Dockerfile2.withfrom
@@ -3833,7 +3841,7 @@ function validate_instance_compression {
   run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/symlink
   run_buildah from --quiet $WITH_POLICY_JSON ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   run ls $root/data/log
   assert "$status" -eq 0 "status from ls $root/data/log"
@@ -3852,7 +3860,7 @@ function validate_instance_compression {
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile.relative-symlink $BUDFILES/symlink
   run_buildah from --quiet $WITH_POLICY_JSON ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   run ls $root/log
   assert "$status" -eq 0 "status from ls $root/log"
@@ -3870,7 +3878,7 @@ function validate_instance_compression {
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/symlink/Dockerfile.multiple-symlinks $BUDFILES/symlink
   run_buildah from --quiet $WITH_POLICY_JSON ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   run ls $root/data/log
   assert "$status" -eq 0 "status from ls $root/data/log"
@@ -3903,7 +3911,7 @@ function validate_instance_compression {
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile.absolute-symlink $BUDFILES/symlink
   run_buildah from --quiet $WITH_POLICY_JSON ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   run ls $root/bin
   assert "$status" -eq 0 "status from ls $root/bin"
@@ -3920,7 +3928,7 @@ function validate_instance_compression {
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile.absolute-dir-symlink $BUDFILES/symlink
   run_buildah from --quiet $WITH_POLICY_JSON ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   run ls $root/data
   assert "$status" -eq 0 "status from ls $root/data"
@@ -4077,42 +4085,44 @@ function validate_instance_compression {
   run_buildah from ${target}
 }
 
-@test "bud-onbuild" {
+@test "bud-onbuild-without-layers" {
   _prefetch alpine
-  target=onbuild
-  run_buildah build --format docker $WITH_POLICY_JSON -t ${target} $BUDFILES/onbuild
-  run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
+  run_buildah build --format docker $WITH_POLICY_JSON --iidfile ${TEST_SCRATCH_DIR}/iid.txt $BUDFILES/onbuild
+  local iid=$(<${TEST_SCRATCH_DIR}/iid.txt)
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${iid}
   expect_output '["RUN touch /onbuild1" "RUN touch /onbuild2"]'
-  run_buildah from --quiet ${target}
-  cid=${lines[0]}
-  run_buildah mount ${cid}
-  root=$output
 
+  run_buildah from --cidfile ${TEST_SCRATCH_DIR}/cid.txt ${iid}
+  local cid=$(<${TEST_SCRATCH_DIR}/cid.txt)
+  run_buildah_mount ${cid}
+  root=$output
   test -e ${root}/onbuild1
   test -e ${root}/onbuild2
+  run_buildah_umount ${cid}
 
-  run_buildah umount ${cid}
-  run_buildah rm ${cid}
-
-  target=onbuild-image2
-  run_buildah build --format docker $WITH_POLICY_JSON -t ${target} -f Dockerfile1 $BUDFILES/onbuild
-  run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
+  run_buildah build --format docker $WITH_POLICY_JSON --iidfile ${TEST_SCRATCH_DIR}/iid.txt --from ${iid} -f Dockerfile1 $BUDFILES/onbuild
+  local iid=$(<${TEST_SCRATCH_DIR}/iid.txt)
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${iid}
   expect_output '["RUN touch /onbuild3"]'
-  run_buildah from --quiet ${target}
-  cid=${lines[0]}
-  run_buildah mount ${cid}
-  root=$output
 
+  run_buildah from --cidfile ${TEST_SCRATCH_DIR}/cid.txt ${iid}
+  local cid=$(<${TEST_SCRATCH_DIR}/cid.txt)
+  run_buildah_mount ${cid}
+  root=$output
   test -e ${root}/onbuild1
   test -e ${root}/onbuild2
   test -e ${root}/onbuild3
-  run_buildah umount ${cid}
+  run_buildah_umount ${cid}
 
+  cp -v ${TEST_SCRATCH_DIR}/root/${STORAGE_DRIVER:-vfs}-containers/${cid}/userdata/buildah.json \
+        ${TEST_SCRATCH_DIR}/root/${STORAGE_DRIVER:-vfs}-containers/${cid}/userdata/buildah.json.bak
   run_buildah config --onbuild "RUN touch /onbuild4" ${cid}
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${cid}
+  expect_output '["RUN touch /onbuild4"]'
 
-  target=onbuild-image3
-  run_buildah commit $WITH_POLICY_JSON --format docker ${cid} ${target}
-  run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
+  run_buildah commit $WITH_POLICY_JSON --iidfile ${TEST_SCRATCH_DIR}/iid.txt --format docker ${cid} ${target}
+  local iid=$(<${TEST_SCRATCH_DIR}/iid.txt)
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${iid}
   expect_output '["RUN touch /onbuild4"]'
 }
 
@@ -4183,7 +4193,7 @@ _EOF
   cat $BUDFILES/from-multiple-files/Dockerfile1.scratch | run_buildah build $WITH_POLICY_JSON -t ${target} -f - $BUDFILES/from-multiple-files
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   test -s $root/Dockerfile1
 }
@@ -4488,7 +4498,7 @@ _EOF
   run_buildah containers -a
   expect_output --substring "test1"
 
-  run_buildah mount $ctr
+  run_buildah_mount $ctr
   mnt=$output
   test   -e $mnt/1
   test ! -e $mnt/2
@@ -4583,11 +4593,11 @@ _EOF
 
     run_buildah from $WITH_POLICY_JSON ${imgname}
     ctr=$(echo "$output" | tail -1)
-    run_buildah mount ${ctr}
+    run_buildah_mount ${ctr}
     mnt=$output
     run cat ${mnt}${path}
     expect_output --substring "$expected" "case: \"$c\""
-    run_buildah unmount ${ctr}
+    run_buildah_umount ${ctr}
   done
 }
 
@@ -4633,7 +4643,7 @@ _EOF
 
   run_buildah from --quiet $WITH_POLICY_JSON ${target}
   ctr=$output
-  run_buildah mount ${ctr}
+  run_buildah_mount ${ctr}
   mnt=$output
 
   newfile="/home/busyboxpodman/copied-testimage-id"
@@ -4660,12 +4670,12 @@ _EOF
 
   run_buildah from  --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root_single_job=$output
 
   run_buildah from --quiet ${target_mt}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root_multi_job=$output
 
   # Check that both the version with --jobs 1 and --jobs=N have the same number of files
@@ -4687,7 +4697,7 @@ _EOF
   expect_output --substring "\[2/2] STEP 1/3: FROM alpine:latest AS mytarget"
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
   test   -e ${root}/2
   test ! -e ${root}/3
@@ -4939,7 +4949,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/copy-workdir
   run_buildah from ${target}
   cid="$output"
-  run_buildah mount "${cid}"
+  run_buildah_mount "${cid}"
   root="$output"
   test -s "${root}"/file1.txt
   test -d "${root}"/subdir
@@ -4954,7 +4964,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON --layers -t ${target} -f Dockerfile.2 $BUDFILES/copy-workdir
   run_buildah from ${target}
   cid="$output"
-  run_buildah mount "${cid}"
+  run_buildah_mount "${cid}"
   root="$output"
   test -d "${root}"/subdir
   test -s "${root}"/subdir/file1.txt
@@ -5030,6 +5040,8 @@ _EOF
 }
 
 @test "bud-copy-dockerignore-hardlinks" {
+  skip_if_rootless_environment "unprivileged tests use sshfs which doesn't represent hard links"
+
   target=image
   local contextdir=${TEST_SCRATCH_DIR}/hardlinks
   mkdir -p $contextdir/subdir
@@ -5042,7 +5054,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} $contextdir
   run_buildah from ${target}
   ctrid="$output"
-  run_buildah mount "$ctrid"
+  run_buildah_mount "$ctrid"
   root="$output"
 
   run stat -c "%d:%i" ${root}/subdir/test1.txt
@@ -5240,7 +5252,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} - < $BUDFILES/context-from-stdin/Dockerfile
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
 
   test -s $root/scratchfile
@@ -5258,7 +5270,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON -t ${target} - < <(tar -c -C $BUDFILES/context-from-stdin .)
   run_buildah from --quiet ${target}
   cid=$output
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$output
 
   test -s $root/scratchfile
@@ -7133,12 +7145,14 @@ _EOF
 }
 
 @test "bud-copy--parents-links" {
+  skip_if_rootless_environment "unprivileged tests use sshfs which doesn't represent hard links"
+
   target=image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/copy-parents/Containerfile-hardlinks $BUDFILES/copy-parents
 
   run_buildah from ${target}
   ctrid="$output"
-  run_buildah mount "$ctrid"
+  run_buildah_mount "$ctrid"
   root="$output"
 
   for dir in parents/x parents_dir_point ;do
@@ -9706,7 +9720,7 @@ _EOF
   run_buildah from --quiet oci:${ocidir}
   # Extract just the container ID (last line), ignoring warning messages
   cid=$(echo "$output" | tail -1)
-  run_buildah mount ${cid}
+  run_buildah_mount ${cid}
   root=$(echo "$output" | tail -1)
 
   # Verify the Windows-specific directory structure was created
@@ -9785,7 +9799,7 @@ _EOF
   done
 
   # Cleanup
-  run_buildah umount ${cid}
+  run_buildah_umount ${cid}
   run_buildah rm ${cid}
 }
 

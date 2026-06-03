@@ -26,7 +26,7 @@ load helpers
       # compare them to their equivalents in the image
       run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine-derived-image
       dcid=$output
-      run_buildah mount $dcid
+      run_buildah_mount $dcid
       mountpoint=$output
       cmp $mountpoint/root/purl.json ${TEST_SCRATCH_DIR}/localpurl.json
       cmp $mountpoint/root/sbom.json ${TEST_SCRATCH_DIR}/localsbom.json
@@ -56,7 +56,7 @@ load helpers
       # compare them to their equivalents in the image
       run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine-derived-image
       dcid=$output
-      run_buildah mount $dcid
+      run_buildah_mount $dcid
       mountpoint=$output
       cmp $mountpoint/root/purl.json ${TEST_SCRATCH_DIR}/localpurl.json
       cmp $mountpoint/root/sbom.json ${TEST_SCRATCH_DIR}/localsbom.json
