@@ -688,6 +688,18 @@ function skip_if_no_podman() {
     fi
 }
 
+######################
+#  skip_if_no_sshfs  #  we need 'sshfs' to mount things as an unprivileged user
+######################
+function skip_if_no_sshfs() {
+    if ! [ -c /dev/fuse ]; then
+        skip "/dev/fuse is not available for sshfs"
+    fi
+    run which ${SSHFS_BINARY:-sshfs}
+    if [[ $status -ne 0 ]]; then
+        skip "sshfs is not installed"
+    fi
+}
 
 ##########################
 #  skip_if_in_container  #

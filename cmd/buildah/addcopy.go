@@ -215,8 +215,17 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 			}()
 		}
 		if err != nil {
-			return fmt.Errorf("reading build container %q: %w", iopts.from, err)
+			return fmt.Errorf("reading --from container %q: %w", iopts.from, err)
 		}
+
+		fromcdir, err := store.ContainerDirectory(from.ContainerID)
+		if err != nil {
+			return fmt.Errorf("finding container state directory for %q: %w", iopts.from, err)
+		}
+		if err := flagServingSFTP(fromcdir); err != nil {
+			return fmt.Errorf(`unable to use "buildah add" or "buildah copy" while container appears to be mounted: %v`, err)
+		}
+
 		fromMountPoint, err := from.Mount(from.MountLabel)
 		if err != nil {
 			return fmt.Errorf("mounting %q container %q: %w", iopts.from, from.Container, err)
@@ -244,6 +253,14 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	builder, err := openBuilder(getContext(), store, name)
 	if err != nil {
 		return fmt.Errorf("reading build container %q: %w", name, err)
+	}
+
+	cdir, err := store.ContainerDirectory(builder.ContainerID)
+	if err != nil {
+		return fmt.Errorf("finding container state directory for %q: %w", name, err)
+	}
+	if err := flagServingSFTP(cdir); err != nil {
+		return fmt.Errorf(`unable to use "buildah add" or "buildah copy" while container appears to be busy: %v`, err)
 	}
 
 	builder.ContentDigester.Restart()

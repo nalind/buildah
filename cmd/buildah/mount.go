@@ -89,6 +89,24 @@ func mountCmd(c *cobra.Command, args []string, opts mountOptions) error {
 				lastError = fmt.Errorf("reading build container %q: %w", name, err)
 				continue
 			}
+			container, err := store.Container(builder.ContainerID)
+			if err == nil {
+				dd, err := store.ContainerDirectory(container.ID)
+				if err != nil {
+					if lastError != nil {
+						fmt.Fprintln(os.Stderr, lastError)
+					}
+					lastError = fmt.Errorf("determining data directory for %q container %q: %w", name, builder.Container, err)
+					continue
+				}
+				if err := flagServingSFTP(dd); err != nil {
+					if lastError != nil {
+						fmt.Fprintln(os.Stderr, lastError)
+					}
+					lastError = fmt.Errorf("mounting %q container %q: %w", name, builder.Container, err)
+					continue
+				}
+			}
 			mountPoint, err := builder.Mount(builder.MountLabel)
 			if err != nil {
 				if lastError != nil {
