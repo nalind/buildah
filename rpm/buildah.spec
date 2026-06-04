@@ -157,6 +157,7 @@ export BUILDTAGS+=" containers_image_sequoia"
 %gobuild -o bin/crash ./tests/crash
 %gobuild -o bin/wait ./tests/wait
 %gobuild -o bin/grpcnoop ./tests/rpc/noop
+%gobuild -o bin/pipeloop ./tests/pipeloop/pipeloop.go
 %{__make} docs
 
 %install
@@ -173,6 +174,7 @@ cp bin/passwd %{buildroot}/%{_bindir}/%{name}-passwd
 cp bin/crash %{buildroot}/%{_bindir}/%{name}-crash
 cp bin/wait %{buildroot}/%{_bindir}/%{name}-wait
 cp bin/grpcnoop %{buildroot}/%{_bindir}/%{name}-grpcnoop
+cp bin/pipeloop %{buildroot}/%{_bindir}/%{name}-pipeloop
 
 rm %{buildroot}%{_datadir}/%{name}/test/system/tools/build/*
 
@@ -202,6 +204,7 @@ rm %{buildroot}%{_datadir}/%{name}/test/system/tools/build/*
 %{_bindir}/%{name}-crash
 %{_bindir}/%{name}-wait
 %{_bindir}/%{name}-grpcnoop
+%{_bindir}/%{name}-pipeloop
 %{_datadir}/%{name}/test
 
 %changelog
