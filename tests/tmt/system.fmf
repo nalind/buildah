@@ -13,6 +13,7 @@ environment:
     GRPCNOOP_BINARY: /usr/bin/buildah-grpcnoop
     WAIT_BINARY: /usr/bin/buildah-wait
     CRASH_BINARY: /usr/bin/buildah-crash
+    PIPELOOP_BINARY: /usr/bin/buildah-pipeloop
     TMPDIR: /var/tmp
 
 adjust:
