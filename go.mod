@@ -12,7 +12,7 @@ require (
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/go-connections v0.7.0
 	github.com/docker/go-units v0.5.0
-	github.com/fsouza/go-dockerclient v1.13.1
+	github.com/fsouza/go-dockerclient v1.13.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.13
 	github.com/moby/buildkit v0.30.0
