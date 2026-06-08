@@ -138,9 +138,6 @@ func SendRegistrationRequest(workloadConfig WorkloadConfig, diskEncryptionPassph
 		return err
 	}
 	parsedURL.Path = path.Join(parsedURL.Path, "/kbs/v0/register_workload")
-	if err != nil {
-		return err
-	}
 	url := parsedURL.String()
 	requestContentType := "application/json"
 	requestBody := bytes.NewReader(registrationRequestBytes)
@@ -203,21 +200,20 @@ func GenerateMeasurement(workloadConfig WorkloadConfig, firmwareLibrary string) 
 	if llp, ok := os.LookupEnv("LD_LIBRARY_PATH"); ok {
 		sharedLibraryDirs = append(sharedLibraryDirs, strings.Split(llp, ":")...)
 	}
-	libkrunfwNames := []string{
-		"libkrunfw-sev.so.4",
-		"libkrunfw-sev.so.3",
-		"libkrunfw-sev.so",
-	}
 	var pathsToCheck []string
 	if firmwareLibrary == "" {
 		for _, sharedLibraryDir := range sharedLibraryDirs {
 			if sharedLibraryDir == "" {
 				continue
 			}
-			for _, libkrunfw := range libkrunfwNames {
-				candidate := filepath.Join(sharedLibraryDir, libkrunfw)
-				pathsToCheck = append(pathsToCheck, candidate)
+			unversionedFirmware := filepath.Join(sharedLibraryDir, "libkrunfw-sev.so")
+			pathsToCheck = append(pathsToCheck, unversionedFirmware)
+			pattern := filepath.Join(sharedLibraryDir, "libkrunfw-sev.so.*")
+			versionedFirmwares, err := filepath.Glob(pattern)
+			if err != nil {
+				return "", fmt.Errorf("krunfw_measurement: %s: %w", pattern, err)
 			}
+			pathsToCheck = append(pathsToCheck, versionedFirmwares...)
 		}
 	} else {
 		if filepath.IsAbs(firmwareLibrary) {
