@@ -268,6 +268,7 @@ func manifestInit() {
 	if err := flags.MarkHidden("insecure"); err != nil {
 		panic(fmt.Sprintf("error marking insecure as hidden: %v", err))
 	}
+	flags.Int64Var(&manifestPushOpts.destTimestamp, "timestamp", 0, "set timestamps on new content to `seconds` after the epoch")
 	flags.BoolVar(&manifestPushOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVarP(&manifestPushOpts.quiet, "quiet", "q", false, "don't output progress information when pushing lists")
 	flags.IntVar(&manifestPushOpts.retry, "retry", int(defaultContainerConfig.Engine.Retry), "number of times to retry in case of failure when performing push")
@@ -1148,6 +1149,9 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 			opts.forceCompressionFormat = true
 		}
 	}
+	if c.Flag("timestamp").Changed {
+		opts.timestampSet = true
+	}
 
 	return manifestPush(systemContext, store, listImageSpec, destSpec, opts)
 }
@@ -1219,7 +1223,10 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 	if !opts.quiet {
 		options.ReportWriter = os.Stderr
 	}
-
+	if opts.timestampSet {
+		ts := time.Unix(int64(opts.destTimestamp), 0).UTC()
+		options.DestinationTimestamp = &ts
+	}
 	_, digest, err := list.Push(getContext(), dest, options)
 
 	if err == nil && opts.rm {
