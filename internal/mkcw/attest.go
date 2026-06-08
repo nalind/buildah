@@ -204,6 +204,7 @@ func GenerateMeasurement(workloadConfig WorkloadConfig, firmwareLibrary string) 
 		sharedLibraryDirs = append(sharedLibraryDirs, strings.Split(llp, ":")...)
 	}
 	libkrunfwNames := []string{
+		"libkrunfw-sev.so.5",
 		"libkrunfw-sev.so.4",
 		"libkrunfw-sev.so.3",
 		"libkrunfw-sev.so",
