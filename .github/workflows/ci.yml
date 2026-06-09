@@ -165,20 +165,6 @@ jobs:
         distro: [fedora-current, fedora-prior, debian-sid]
         storage: [vfs, overlay]
         priv: [root, rootless]
-        exclude:
-          - storage: vfs
-            priv: rootless
-          - distro: debian-sid
-            priv: rootless
-          # Skip rootless+overlay: upstream Cirrus's PASSTHROUGH_ENV_RE drops
-          # STORAGE_DRIVER through SSH re-exec to rootlessuser, so their
-          # "Integration rootless ... w/ overlay" task silently tests vfs.
-          # When we propagate STORAGE_DRIVER properly, we expose a real
-          # rootless+overlay cleanup bug in buildah's storage code
-          # ("replacing mount point .../merged: directory not empty").
-          # Skip these cells until that's fixed upstream.
-          - storage: overlay
-            priv: rootless
         include:
           - storage: overlay
             priv: root
