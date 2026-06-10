@@ -441,12 +441,20 @@ func makeCopyBuffer() []byte {
 func copyFileFromOtherLayer(file *fileMetadata, source string, name string, dirfd int, useHardLinks bool) (bool, *os.File, int64, error) {
 	srcDirfd, err := unix.Open(source, unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
+		if errors.Is(err, unix.ENOENT) {
+			// Source layer was removed; skip reuse, fetch from remote instead.
+			return false, nil, 0, nil
+		}
 		return false, nil, 0, &fs.PathError{Op: "open", Path: source, Err: err}
 	}
 	defer unix.Close(srcDirfd)
 
 	srcFile, err := openFileUnderRoot(srcDirfd, name, unix.O_RDONLY|syscall.O_CLOEXEC, 0)
 	if err != nil {
+		if errors.Is(err, unix.ENOENT) {
+			// Source layer is probably being removed and the file is already gone.
+			return false, nil, 0, nil
+		}
 		return false, nil, 0, err
 	}
 	defer srcFile.Close()
@@ -858,13 +866,17 @@ func (c *chunkedDiffer) recordFsVerity(path string, roFile *os.File) error {
 	// enabled on the file.
 	err := fsverity.EnableVerity(path, int(roFile.Fd()))
 	if err != nil {
-		if c.useFsVerity == graphdriver.DifferFsVerityRequired {
+		switch {
+		case c.useFsVerity == graphdriver.DifferFsVerityRequired:
 			return err
-		}
 
 		// If it is not required, ignore the error if the filesystem does not support it.
-		if errors.Is(err, unix.ENOTSUP) || errors.Is(err, unix.ENOTTY) {
+		case c.useFsVerity == graphdriver.DifferFsVerityIfAvailable &&
+			(errors.Is(err, unix.ENOTSUP) || errors.Is(err, unix.ENOTTY)):
 			return nil
+
+		default:
+			return err
 		}
 	}
 	verity, err := fsverity.MeasureVerity(path, int(roFile.Fd()))
