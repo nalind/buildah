@@ -58,7 +58,7 @@ if [[ "$DISTRO_NAME" == "fedora-rawhide" ]]; then
     export TEST_BUILD_TAGS="${TEST_BUILD_TAGS:-containers_image_sequoia}"
 fi
 if [[ "$OS_RELEASE_ID" == "debian" ]]; then
-    sudo apt-get install -y --no-install-recommends util-linux-extra || true
+    sudo apt-get -U install -y --no-install-recommends util-linux-extra || true
 fi
 
 "$SCRIPT_DIR/logcollector.sh" packages
