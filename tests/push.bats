@@ -89,7 +89,7 @@ load helpers
 
 @test "push should fail with nonexistent authfile" {
   _prefetch alpine
-  run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah images -q
   imageid=$output
@@ -216,7 +216,7 @@ load helpers
 
 @test "push with --compression-format" {
   _prefetch alpine
-  run_buildah from --quiet --pull alpine
+  run_buildah from --quiet --pull=false alpine
   cid=$output
   run_buildah images -q
   imageid=$output

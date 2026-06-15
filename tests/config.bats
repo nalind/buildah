@@ -372,7 +372,7 @@ EOF
 
 @test "user" {
   _prefetch alpine
-  run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid grep CapBnd /proc/self/status
   bndoutput=$output

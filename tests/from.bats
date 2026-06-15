@@ -176,7 +176,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --cpu-period=5000 --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --cpu-period=5000 --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid /bin/sh -c "cut -d ' ' -f 2 /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max"
   expect_output "5000"
@@ -201,7 +201,7 @@ load helpers
 
   _prefetch alpine
   for shares in 2 200 2000 12345 20000 200000 ; do
-    run_buildah from --quiet --cpu-shares=${shares} --pull $WITH_POLICY_JSON alpine
+    run_buildah from --quiet --cpu-shares=${shares} --pull=false $WITH_POLICY_JSON alpine
     cid=$output
     local converted="$(convert_v1_shares_to_v2_weight ${shares})"
     local expect="(weight ${converted##* }|weight ${converted%% *})"
@@ -229,7 +229,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --cpuset-mems=0 --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --cpuset-mems=0 --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.mems"
   expect_output "0"
@@ -254,7 +254,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --volume=${TEST_SCRATCH_DIR}:/myvol --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --volume=${TEST_SCRATCH_DIR}:/myvol --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
@@ -312,7 +312,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --shm-size=80m --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --shm-size=80m --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid -- df -h /dev/shm
   expect_output --substring " 80.0M "
@@ -322,7 +322,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --add-host=localhost:127.0.0.1 --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --add-host=localhost:127.0.0.1 --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run --net=container $cid -- cat /etc/hosts
   expect_output --substring "127.0.0.1[[:blank:]]*localhost"
@@ -331,7 +331,7 @@ load helpers
 @test "from name test" {
   _prefetch alpine
   container_name=mycontainer
-  run_buildah from --quiet --name=${container_name} --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --name=${container_name} --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah inspect --format '{{.Container}}' ${container_name}
 }
