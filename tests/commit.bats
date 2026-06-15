@@ -210,14 +210,14 @@ load helpers
 
 @test "commit should fail with nonexistent authfile" {
   _prefetch alpine
-  run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah 125 commit --authfile /tmp/nonexistent $WITH_POLICY_JSON $cid alpine-image
 }
 
 @test "commit-builder-identity" {
 	_prefetch alpine
-	run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah commit $WITH_POLICY_JSON $cid alpine-image
 
@@ -231,7 +231,7 @@ load helpers
 
 @test "commit-container-id" {
   _prefetch alpine
-  run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 
   # There is exactly one container. Get its ID.
   run_buildah containers --format '{{.ContainerID}}'
