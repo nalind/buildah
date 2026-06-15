@@ -2242,7 +2242,8 @@ func (d *Driver) ApplyDiffWithDiffer(options *graphdriver.ApplyDiffWithDifferOpt
 	logrus.Debugf("Applying differ in %s", applyDir)
 
 	differOptions := graphdriver.DifferOptions{
-		Format: graphdriver.DifferOutputFormatDir,
+		Format:           graphdriver.DifferOutputFormatDir,
+		StagingDirectory: layerDir,
 	}
 	if d.usingComposefs {
 		differOptions.Format = graphdriver.DifferOutputFormatFlat
