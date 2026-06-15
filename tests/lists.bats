@@ -252,6 +252,26 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     expect_output --substring "foo1: image not known"
 }
 
+@test "manifest-push-with-timestamp" {
+    outpath=${TEST_SCRATCH_DIR}/out
+
+    run_buildah manifest create foo
+    run_buildah manifest add --all foo ${IMAGE_LIST}
+
+    run_buildah manifest push --timestamp=1 foo oci-archive:${outpath}.a
+    run_buildah manifest push --timestamp=0 foo oci-archive:${outpath}.b
+    sleep 1.1
+    run_buildah manifest push --timestamp=0 foo oci-archive:${outpath}.c
+
+    run_buildah manifest rm foo
+
+    # should be different ( || false is due to bats weirdness )
+    ! diff "${outpath}.a" "${outpath}.b" || false
+
+    # should be the same
+    diff "${outpath}.b" "${outpath}.c"
+}
+
 @test "manifest-push" {
     run_buildah manifest create foo
     run_buildah manifest add --all foo ${IMAGE_LIST}
