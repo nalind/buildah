@@ -14,7 +14,7 @@ import (
 // did, in fact, mount an overlay; and a cleanup function which should be
 // called when the location is no longer needed (on success).  Returned errors
 // should be treated as fatal.
-// TODO: currenty a no-op on this platform.
+// TODO: currently a no-op on this platform.
 func platformSetupContextDirectoryOverlay(store storage.Store, options *define.BuildOptions) (string, string, string, bool, func(), error) {
 	return options.ContextDirectory, "", "", false, func() {}, nil
 }

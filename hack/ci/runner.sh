@@ -11,7 +11,9 @@ parse_args "$@"
 export PRIV_NAME="$PRIV"
 export STORAGE_DRIVER
 
-PRESERVE_ENVS="STORAGE_DRIVER,PRIV_NAME,BUILDAH_RUNTIME,IN_PODMAN,IN_PODMAN_NAME,IN_PODMAN_IMAGE,TEST_BUILD_TAGS,GOPATH,GOCACHE,GOSRC,GITVALIDATE_EPOCH,CI_USE_REGISTRY_CACHE,TMPDIR"
+echo "::group::System setup"
+
+PRESERVE_ENVS="STORAGE_DRIVER,PRIV_NAME,BUILDAH_RUNTIME,IN_PODMAN,IN_PODMAN_NAME,IN_PODMAN_IMAGE,TEST_BUILD_TAGS,GOPATH,GOCACHE,GOSRC,CI_USE_REGISTRY_CACHE,TMPDIR"
 
 LCR=/var/cache/local-registry/local-cache-registry
 if [[ -x $LCR ]]; then
@@ -42,7 +44,7 @@ done
 if [[ "$TEST" == "conformance" ]]; then
     case "$OS_RELEASE_ID" in
         fedora)
-            sudo dnf install -y docker || sudo dnf install -y moby-engine
+            die "conformance tests are not supported on fedora"
             ;;
         debian)
             sudo dpkg -i /var/cache/download/containerd.io*.deb /var/cache/download/docker-ce*.deb
@@ -51,34 +53,17 @@ if [[ "$TEST" == "conformance" ]]; then
     sudo systemctl start docker || true
 fi
 
-if [[ "$OS_RELEASE_ID" == "fedora" ]]; then
-    sudo dnf install -y libkrunfw || true
-fi
 if [[ "$DISTRO_NAME" == "fedora-rawhide" ]]; then
     export TEST_BUILD_TAGS="${TEST_BUILD_TAGS:-containers_image_sequoia}"
 fi
-if [[ "$OS_RELEASE_ID" == "debian" ]]; then
-    sudo apt-get -U install -y --no-install-recommends util-linux-extra || true
-fi
+echo "::endgroup::" # System setup
 
+echo "::group::Logging system info"
 "$SCRIPT_DIR/logcollector.sh" packages
+echo "::endgroup::"
 
-echo
-echo "#################"
-echo "SETUP COMPLETE"
-echo "#################"
 
 export GOSRC="$(pwd)"
-
-function run_smoke() {
-    export GITVALIDATE_EPOCH="${GITVALIDATE_EPOCH:-origin/main}"
-    $SUDO make validate
-}
-
-function run_vendor() {
-    make vendor
-    ./hack/tree_status.sh
-}
 
 function run_cross() {
     make -j cross CGO_ENABLED=0

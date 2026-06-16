@@ -2,7 +2,7 @@
 
 set -e
 
-# shellcheck source=contrib/ci/lib.sh
+# shellcheck source=hack/ci/lib.sh
 source "$(dirname "$0")/lib.sh"
 
 showrun() {

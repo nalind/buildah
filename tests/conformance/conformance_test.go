@@ -349,8 +349,8 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 	// that can use a fairly old version.
 	//
 	// If we don’t want this old version to be used, we must specify a version ourselves
-	// (the API requries it to be specified when initializing the client). We could create
-	// a client only to call .Version() and then create another client witht the discovered version,
+	// (the API requires it to be specified when initializing the client). We could create
+	// a client only to call .Version() and then create another client with the discovered version,
 	// but that’s not really any more correct.
 	//
 	// As of 2026-02, the client is choosing 1.39, while our server supports 1.44–1.52.
