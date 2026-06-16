@@ -69,11 +69,6 @@ function run_smoke() {
     $SUDO make validate
 }
 
-function run_vendor() {
-    make vendor
-    ./hack/tree_status.sh
-}
-
 function run_cross() {
     make -j cross CGO_ENABLED=0
 }
