@@ -6,7 +6,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" && pwd )
 
 source "$SCRIPT_DIR/lib.sh"
 
-AUTOMATION_RELEASE="${AUTOMATION_RELEASE:-20260520t200858z}"
+AUTOMATION_RELEASE="${AUTOMATION_RELEASE:-20260616t073924z}" # TODO should be renovate managed
 LIMA_VM_NAME=buildah-ci
 
 REPO_DIR="$SCRIPT_DIR/../.."
