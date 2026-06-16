@@ -7,5 +7,3 @@ code:
   - '.github/**'
   - 'hack/**'
   - 'tests/**'
-  - '.codespellrc'
-  - '.golangci.yml'
