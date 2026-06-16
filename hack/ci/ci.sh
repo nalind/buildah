@@ -28,9 +28,9 @@ limactl copy "$REPO_DIR" $LIMA_VM_NAME:/var/tmp/buildah
 
 set +e
 
-limactl shell --workdir /var/tmp/buildah $LIMA_VM_NAME ./contrib/ci/runner.sh "${@}"
+limactl shell --workdir /var/tmp/buildah $LIMA_VM_NAME ./hack/ci/runner.sh "${@}"
 rc=$?
 
-limactl shell --workdir /var/tmp/buildah $LIMA_VM_NAME sudo contrib/ci/logcollector.sh journal &> "$SCRIPT_DIR/journal.log"
+limactl shell --workdir /var/tmp/buildah $LIMA_VM_NAME sudo hack/ci/logcollector.sh journal &> "$SCRIPT_DIR/journal.log"
 
 exit $rc

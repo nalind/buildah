@@ -46,12 +46,12 @@ jobs:
 
       - name: Run test on lima
         run: | # zizmor: ignore[template-injection]
-          ./contrib/ci/ci.sh ${{ inputs.test }} ${{ inputs.storage }} ${{ inputs.priv }} ${{ inputs.distro }}
+          ./hack/ci/ci.sh ${{ inputs.test }} ${{ inputs.storage }} ${{ inputs.priv }} ${{ inputs.distro }}
 
       - name: Upload journal as artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: "journal-${{ inputs.test }}-${{ inputs.storage }}-${{ inputs.priv }}-${{ inputs.distro }}.log"
-          path: "./contrib/ci/journal.log"
+          path: "./hack/ci/journal.log"
           if-no-files-found: ignore

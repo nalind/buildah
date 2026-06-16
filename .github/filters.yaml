@@ -5,7 +5,6 @@ code:
   - 'vendor/**'
   - 'Makefile'
   - '.github/**'
-  - 'contrib/ci/**'
   - 'hack/**'
   - 'tests/**'
   - '.codespellrc'
