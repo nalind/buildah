@@ -13,7 +13,7 @@ export STORAGE_DRIVER
 
 echo "::group::System setup"
 
-PRESERVE_ENVS="STORAGE_DRIVER,PRIV_NAME,BUILDAH_RUNTIME,IN_PODMAN,IN_PODMAN_NAME,IN_PODMAN_IMAGE,TEST_BUILD_TAGS,GOPATH,GOCACHE,GOSRC,GITVALIDATE_EPOCH,CI_USE_REGISTRY_CACHE,TMPDIR"
+PRESERVE_ENVS="STORAGE_DRIVER,PRIV_NAME,BUILDAH_RUNTIME,IN_PODMAN,IN_PODMAN_NAME,IN_PODMAN_IMAGE,TEST_BUILD_TAGS,GOPATH,GOCACHE,GOSRC,CI_USE_REGISTRY_CACHE,TMPDIR"
 
 LCR=/var/cache/local-registry/local-cache-registry
 if [[ -x $LCR ]]; then
@@ -64,11 +64,6 @@ echo "::endgroup::"
 
 
 export GOSRC="$(pwd)"
-
-function run_smoke() {
-    export GITVALIDATE_EPOCH="${GITVALIDATE_EPOCH:-origin/main}"
-    $SUDO make validate
-}
 
 function run_cross() {
     make -j cross CGO_ENABLED=0
