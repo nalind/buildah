@@ -1224,7 +1224,7 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 		options.ReportWriter = os.Stderr
 	}
 	if opts.timestampSet {
-		ts := time.Unix(int64(opts.destTimestamp), 0).UTC()
+		ts := time.Unix(opts.destTimestamp, 0).UTC()
 		options.DestinationTimestamp = &ts
 	}
 	_, digest, err := list.Push(getContext(), dest, options)
