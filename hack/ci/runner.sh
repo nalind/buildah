@@ -11,6 +11,8 @@ parse_args "$@"
 export PRIV_NAME="$PRIV"
 export STORAGE_DRIVER
 
+echo "::group::System setup"
+
 PRESERVE_ENVS="STORAGE_DRIVER,PRIV_NAME,BUILDAH_RUNTIME,IN_PODMAN,IN_PODMAN_NAME,IN_PODMAN_IMAGE,TEST_BUILD_TAGS,GOPATH,GOCACHE,GOSRC,GITVALIDATE_EPOCH,CI_USE_REGISTRY_CACHE,TMPDIR"
 
 LCR=/var/cache/local-registry/local-cache-registry
@@ -54,13 +56,12 @@ fi
 if [[ "$DISTRO_NAME" == "fedora-rawhide" ]]; then
     export TEST_BUILD_TAGS="${TEST_BUILD_TAGS:-containers_image_sequoia}"
 fi
+echo "::endgroup::" # System setup
 
+echo "::group::Logging system info"
 "$SCRIPT_DIR/logcollector.sh" packages
+echo "::endgroup::"
 
-echo
-echo "#################"
-echo "SETUP COMPLETE"
-echo "#################"
 
 export GOSRC="$(pwd)"
 
