@@ -73,6 +73,10 @@ jobs:
             libsystemd-dev \
             libclone-perl
 
+      - name: Install codespell
+        # Version of codespell bundled with Ubuntu is way old, so use pip.
+        run: pip install --break-system-packages codespell==v2.4.2
+
       - name: make validate
         env:
           GITHUB_TOKEN: ${{ github.token }}
