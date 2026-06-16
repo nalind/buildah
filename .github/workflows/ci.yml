@@ -95,6 +95,7 @@ jobs:
       - name: make vendor
         run: |
           make vendor
+          make -C tests/tools vendor
           ./hack/tree_status.sh
 
   cross:
