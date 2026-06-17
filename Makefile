@@ -58,7 +58,9 @@ export GOLANGCI_LINT_VERSION := 2.12.2
 #     Note: Uses the -N -l go compiler options to disable compiler optimizations
 #           and inlining. Using these build options allows you to subsequently
 #           use source debugging tools like delve.
-all: bin/buildah bin/imgtype bin/copy bin/inet bin/tutorial bin/dumpspec bin/passwd bin/crash bin/wait bin/grpcnoop docs
+all: binaries docs
+
+binaries: bin/buildah bin/imgtype bin/copy bin/inet bin/tutorial bin/dumpspec bin/passwd bin/crash bin/wait bin/grpcnoop
 
 bin/buildah: $(SOURCES) internal/mkcw/embed/entrypoint_amd64.gz
 	$(GO_BUILD) $(BUILDAH_LDFLAGS) $(GO_GCFLAGS) "$(GOGCFLAGS)" -o $@ $(BUILDFLAGS) ./cmd/buildah
@@ -185,7 +187,7 @@ test-conformance: tests/conformance/testdata/mount-targets/true internal/mkcw/em
 	$(GO_TEST) -v -tags "$(STORAGETAGS) $(SECURITYTAGS)" -cover -timeout 60m ./tests/conformance
 
 .PHONY: test-integration
-test-integration: all
+test-integration: binaries
 	cd tests; ./test_runner.sh
 
 tests/testreport/testreport: tests/testreport/testreport.go
