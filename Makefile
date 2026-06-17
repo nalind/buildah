@@ -138,14 +138,14 @@ clean:
 	$(MAKE) -C docs clean
 
 .PHONY: docs
-docs: install.tools ## build the docs on the host
+docs: install.go-md2man ## build the docs on the host
 	$(MAKE) -C docs
 
 codespell:
 	codespell -w
 
 .PHONY: validate
-validate: all install.tools lint lint-entrypoint codespell
+validate: all lint lint-entrypoint codespell
 	./tests/validate/whitespace.sh
 	./hack/xref-helpmsgs-manpages
 	./tests/validate/pr-should-include-tests
@@ -155,9 +155,13 @@ validate: all install.tools lint lint-entrypoint codespell
 lint-entrypoint: internal/mkcw/embed/entrypoint_amd64.gz
 	$(GO) run tests/validate/was-not-go-compiled.go internal/mkcw/embed/entrypoint_amd64.gz
 
-.PHONY: install.tools
-install.tools:
-	$(MAKE) -C tests/tools
+.PHONY: install.go-md2man
+install.go-md2man:
+	$(MAKE) -C tests/tools build/go-md2man
+
+.PHONY: install.golangci-lint
+install.golangci-lint:
+	$(MAKE) -C tests/tools build/golangci-lint
 
 .PHONY: install
 install: bin/buildah
@@ -181,7 +185,7 @@ test-conformance: tests/conformance/testdata/mount-targets/true internal/mkcw/em
 	$(GO_TEST) -v -tags "$(STORAGETAGS) $(SECURITYTAGS)" -cover -timeout 60m ./tests/conformance
 
 .PHONY: test-integration
-test-integration: all install.tools
+test-integration: all
 	cd tests; ./test_runner.sh
 
 tests/testreport/testreport: tests/testreport/testreport.go
@@ -214,12 +218,12 @@ vendor:
 	if test -n "$(strip $(shell $(GO) env GOTOOLCHAIN))"; then go mod edit -toolchain none ; fi
 
 .PHONY: lint
-lint: install.tools internal/mkcw/embed/entrypoint_amd64.gz
+lint: install.golangci-lint internal/mkcw/embed/entrypoint_amd64.gz
 	./tests/tools/build/golangci-lint run $(LINTFLAGS)
 	./tests/tools/build/golangci-lint run --tests=false $(LINTFLAGS)
 
 .PHONY: fmt
-fmt: install.tools
+fmt: install.golangci-lint
 	./tests/tools/build/golangci-lint fmt $(LINTFLAGS)
 
 # CAUTION: This is not a replacement for RPMs provided by your distro.
