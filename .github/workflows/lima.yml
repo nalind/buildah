@@ -26,7 +26,7 @@ permissions: {}
 
 jobs:
   lima:
-    name: ${{ inputs.test }} ${{ inputs.storage || '' }} ${{ inputs.priv || '' }} ${{ inputs.distro }}
+    name: lima # main name is set by who spawns this job
     runs-on: ${{ inputs.runner }}
     timeout-minutes: ${{ inputs.timeout || 20 }}
     permissions: {}
