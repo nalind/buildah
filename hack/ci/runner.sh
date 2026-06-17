@@ -83,7 +83,6 @@ function run_conformance() {
 }
 
 function run_integration() {
-    make all
     $SUDO make test-integration
 }
 
@@ -91,7 +90,6 @@ function run_in_podman() {
     export IN_PODMAN=true
     export BUILDAH_ISOLATION=chroot
     export STORAGE_DRIVER=vfs
-    make all
     $SUDO make test-integration
 }
 
