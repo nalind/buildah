@@ -205,7 +205,7 @@ test-unit: tests/testreport/testreport internal/mkcw/embed/entrypoint_amd64.gz
 	$(GO_TEST) -v -tags "$(STORAGETAGS) $(SECURITYTAGS)" -cover $(RACEFLAGS) ./cmd/buildah -args --root $$tmp/root --runroot $$tmp/runroot --storage-driver vfs --signature-policy $(shell pwd)/tests/policy.json --registries-conf $(shell pwd)/tests/registries.conf
 
 vendor-in-container:
-	goversion=$(shell sed -e '/^go /!d' -e '/^go /s,.* ,,g' go.mod) ; \
+	goversion=$(shell $(GO) list -m -f {{.GoVersion}}) ; \
 	if test -d `$(GO) env GOCACHE` && test -w `$(GO) env GOCACHE` ; then \
 		podman run --privileged --rm --env HOME=/root -v `$(GO) env GOCACHE`:/root/.cache/go-build --env GOCACHE=/root/.cache/go-build -v `pwd`:/src -w /src docker.io/library/golang:$$goversion make vendor ; \
 	else \
