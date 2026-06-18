@@ -2021,7 +2021,7 @@ func (s *stageExecutor) historyAndDiffIDsMatch(baseHistory []v1.History, baseDif
 }
 
 // getCreatedBy returns the value to store in the history entry for the node.
-// If the the passed-in addedContentSummary is not an empty string, it is
+// If the passed-in addedContentSummary is not an empty string, it is
 // assumed to have the digest information for the content if the node is ADD or
 // COPY.
 //
