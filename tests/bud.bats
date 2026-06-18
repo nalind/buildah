@@ -7878,7 +7878,7 @@ _EOF
   run_buildah bud $WITH_POLICY_JSON --network pasta $BUDFILES/network
   assert "$output" =~ "$ip" "ip addr shows default subnet"
 
-  # check some entwork options, it accepts raw pasta(1) arguments
+  # check some network options, it accepts raw pasta(1) arguments
   mac="9a:dd:31:ea:92:98"
   run_buildah bud $WITH_POLICY_JSON --network pasta:--mtu,2000,--ns-mac-addr,"$mac" $BUDFILES/network
   assert "$output" =~ "$mac" "ip addr shows custom mac address"
