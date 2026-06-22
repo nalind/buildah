@@ -33,7 +33,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	go.etcd.io/bbolt v1.4.3
+	go.etcd.io/bbolt v1.5.0
 	go.podman.io/common v0.68.1-0.20260612143148-9869b8fd9686
 	go.podman.io/image/v5 v5.40.1-0.20260612143148-9869b8fd9686
 	go.podman.io/storage v1.63.1-0.20260612143148-9869b8fd9686
