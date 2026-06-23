@@ -484,7 +484,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			if fromErr != nil {
 				return fmt.Errorf("unable to resolve argument %q: %w", copy.From, fromErr)
 			}
-			var additionalBuildContext *define.AdditionalBuildContext
+			var additionalBuildContext *additionalBuildContext
 			if foundContext, ok := s.executor.additionalBuildContexts[from]; ok {
 				additionalBuildContext = foundContext
 			} else {
@@ -512,18 +512,14 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 							// additional context contains a tar file
 							// so download and explode tar to buildah
 							// temp and point context to that.
-							// TODO: the returned path is never cleaned up, leaking disk space.
 							path, subdir, err := define.TempDirForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
 							if err != nil {
 								return fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
 							}
-							// point context dir to the extracted path
-							contextDir = filepath.Join(path, subdir)
-							// populate cache for next RUN step
-							additionalBuildContext.DownloadedCache = contextDir
-						} else {
-							contextDir = additionalBuildContext.DownloadedCache
+							additionalBuildContext.downloadedTempDir = path
+							additionalBuildContext.DownloadedCache = filepath.Join(path, subdir)
 						}
+						contextDir = additionalBuildContext.DownloadedCache
 					} else {
 						// This points to a path on the filesystem
 						// Check to see if there's a .containerignore
@@ -733,18 +729,14 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 								// additional context contains a tar file
 								// so download and explode tar to buildah
 								// temp and point context to that.
-								// TODO: the returned path is never cleaned up, leaking disk space.
 								path, subdir, err := define.TempDirForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
 								if err != nil {
 									return nil, fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
 								}
-								// point context dir to the extracted path
-								mountPoint = filepath.Join(path, subdir)
-								// populate cache for next RUN step
-								additionalBuildContext.DownloadedCache = mountPoint
-							} else {
-								mountPoint = additionalBuildContext.DownloadedCache
+								additionalBuildContext.downloadedTempDir = path
+								additionalBuildContext.DownloadedCache = filepath.Join(path, subdir)
 							}
+							mountPoint = additionalBuildContext.DownloadedCache
 						}
 						stageMountPoints[from] = internal.StageMountDetails{
 							IsAdditionalBuildContext: true,
