@@ -229,18 +229,16 @@ func (ns *netNS) Do(toRun func(NetNS) error) error {
 	defer hostNS.Close()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
 
 	// Start the callback in a new green thread so that if we later fail
 	// to switch the namespace back to the original one, we can safely
 	// leave the thread locked to die without a risk of the current thread
 	// left lingering with incorrect namespace.
 	var innerError error
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		runtime.LockOSThread()
 		innerError = containedCall(hostNS)
-	}()
+	})
 	wg.Wait()
 
 	return innerError
@@ -249,7 +247,7 @@ func (ns *netNS) Do(toRun func(NetNS) error) error {
 // GetNSRunDir returns the dir of where to create the netNS. When running
 // rootless, it needs to be at a location writable by user.
 func GetNSRunDir() (string, error) {
-	if unshare.IsRootless() {
+	if unshare.GetRootlessUID() > 0 {
 		rootlessDir, err := homedir.GetRuntimeDir()
 		if err != nil {
 			return "", err

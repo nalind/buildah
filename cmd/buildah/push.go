@@ -48,6 +48,8 @@ type pushOptions struct {
 	encryptLayers          []int
 	insecure               bool
 	addCompression         []string
+	destTimestamp          int64
+	timestampSet           bool
 }
 
 func pushInit() {

@@ -1,0 +1,53 @@
+name: lima
+
+on:
+  workflow_call:
+    inputs:
+      distro:
+        required: true
+        type: string
+      test:
+        required: true
+        type: string
+      priv:
+        required: false
+        type: string
+      storage:
+        required: false
+        type: string
+      runner:
+        required: true
+        type: string
+      timeout:
+        required: false
+        type: number
+
+permissions: {}
+
+jobs:
+  lima:
+    name: lima # main name is set by who spawns this job
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout || 20 }}
+    permissions: {}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: lima-vm/lima-actions/setup@55627e31b78637bf254a8b2a14da8ea7d12564e5  # v1.1.0
+        id: lima
+        with:
+          version: v2.1.1
+
+      - name: Run test on lima
+        run: | # zizmor: ignore[template-injection]
+          ./hack/ci/ci.sh ${{ inputs.test }} ${{ inputs.storage }} ${{ inputs.priv }} ${{ inputs.distro }}
+
+      - name: Upload journal as artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: "journal-${{ inputs.test }}-${{ inputs.storage }}-${{ inputs.priv }}-${{ inputs.distro }}.log"
+          path: "./hack/ci/journal.log"
+          if-no-files-found: ignore

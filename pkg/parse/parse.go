@@ -235,6 +235,7 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get container config: %w", err)
 	}
+	securityOpts = addSeccompFromConfig(securityOpts, defConfig.Containers.SeccompProfile)
 	if defConfig.Containers.EnableLabeledUsers {
 		defSecurityOpts, err := currentLabelOpts()
 		if err != nil {
@@ -247,6 +248,21 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 		return nil, err
 	}
 	return commonOpts, nil
+}
+
+// addSeccompFromConfig appends seccompProfile as a seccomp security option
+// when seccompProfile is non-default and securityOpts does not already contain
+// a seccomp option.
+func addSeccompFromConfig(securityOpts []string, seccompProfile string) []string {
+	if seccompProfile == "" || seccompProfile == SeccompDefaultPath {
+		return securityOpts
+	}
+	for _, opt := range securityOpts {
+		if strings.HasPrefix(opt, "seccomp=") {
+			return securityOpts
+		}
+	}
+	return append(securityOpts, "seccomp="+seccompProfile)
 }
 
 // GetAdditionalBuildContext consumes a raw string and returns a parsed

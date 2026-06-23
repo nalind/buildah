@@ -1,0 +1,9 @@
+code:
+  - '**/*.go'
+  - 'go.mod'
+  - 'go.sum'
+  - 'vendor/**'
+  - 'Makefile'
+  - '.github/**'
+  - 'hack/**'
+  - 'tests/**'

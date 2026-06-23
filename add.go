@@ -123,6 +123,9 @@ type AddAndCopyOptions struct {
 	// AllowEmptyWildcard controls whether the operation succeeds when all
 	// glob patterns match nothing. Defaults to false.
 	AllowEmptyWildcard types.OptionalBool
+	// FollowSymlink controls whether symlinks should be followed when copying content.
+	// When set to false, symlinks are not dereferenced.
+	FollowSymlink types.OptionalBool
 }
 
 // getURL writes a tar archive containing the named content
@@ -600,6 +603,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					if getErr != nil {
 						return
 					}
+					defer os.RemoveAll(cloneDir)
 					getOptions := copier.GetOptions{
 						UIDMap:             srcUIDMap,
 						GIDMap:             srcGIDMap,
@@ -609,6 +613,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						ChownDirs:          chownDirs,
 						ChownFiles:         chownFiles,
 						KeepDirectoryNames: options.DirCopyContents == types.OptionalBoolFalse,
+						NoDerefSymlinks:    options.FollowSymlink == types.OptionalBoolFalse,
 						StripSetuidBit:     options.StripSetuidBit,
 						StripSetgidBit:     options.StripSetgidBit,
 						StripStickyBit:     options.StripStickyBit,
@@ -783,6 +788,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					Timestamp:          options.Timestamp,
 					DisallowWildcard:   options.AllowWildcard == types.OptionalBoolFalse,
 					AllowEmptyWildcard: options.AllowEmptyWildcard == types.OptionalBoolTrue,
+					NoDerefSymlinks:    options.FollowSymlink == types.OptionalBoolFalse,
 				}
 				getErr = copier.Get(contextDir, contextDir, getOptions, []string{globbedToGlobbable(globbed)}, writer)
 				closeErr = writer.Close()

@@ -484,7 +484,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			if fromErr != nil {
 				return fmt.Errorf("unable to resolve argument %q: %w", copy.From, fromErr)
 			}
-			var additionalBuildContext *define.AdditionalBuildContext
+			var additionalBuildContext *additionalBuildContext
 			if foundContext, ok := s.executor.additionalBuildContexts[from]; ok {
 				additionalBuildContext = foundContext
 			} else {
@@ -516,13 +516,10 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 							if err != nil {
 								return fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
 							}
-							// point context dir to the extracted path
-							contextDir = filepath.Join(path, subdir)
-							// populate cache for next RUN step
-							additionalBuildContext.DownloadedCache = contextDir
-						} else {
-							contextDir = additionalBuildContext.DownloadedCache
+							additionalBuildContext.downloadedTempDir = path
+							additionalBuildContext.DownloadedCache = filepath.Join(path, subdir)
 						}
+						contextDir = additionalBuildContext.DownloadedCache
 					} else {
 						// This points to a path on the filesystem
 						// Check to see if there's a .containerignore
@@ -736,13 +733,10 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 								if err != nil {
 									return nil, fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
 								}
-								// point context dir to the extracted path
-								mountPoint = filepath.Join(path, subdir)
-								// populate cache for next RUN step
-								additionalBuildContext.DownloadedCache = mountPoint
-							} else {
-								mountPoint = additionalBuildContext.DownloadedCache
+								additionalBuildContext.downloadedTempDir = path
+								additionalBuildContext.DownloadedCache = filepath.Join(path, subdir)
 							}
+							mountPoint = additionalBuildContext.DownloadedCache
 						}
 						stageMountPoints[from] = internal.StageMountDetails{
 							IsAdditionalBuildContext: true,
@@ -1634,7 +1628,7 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 		// Only attempt to find cache if its needed, this part is needed
 		// so that if a step is using RUN --mount and mounts content from
 		// previous stages then it uses the freshly built stage instead
-		// of re-using the older stage from the store.
+		// of reusing the older stage from the store.
 		avoidLookingCache := false
 		var mounts []string
 		for _, a := range node.Flags {
@@ -2019,7 +2013,7 @@ func (s *stageExecutor) historyAndDiffIDsMatch(baseHistory []v1.History, baseDif
 }
 
 // getCreatedBy returns the value to store in the history entry for the node.
-// If the the passed-in addedContentSummary is not an empty string, it is
+// If the passed-in addedContentSummary is not an empty string, it is
 // assumed to have the digest information for the content if the node is ADD or
 // COPY.
 //
