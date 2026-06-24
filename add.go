@@ -103,7 +103,7 @@ type AddAndCopyOptions struct {
 	// the source paths for source locations which include such a
 	// component.
 	Parents bool
-	// Timestamp is a timestamp to override on all content as it is being read.
+	// Timestamp, if set, overrides timestamps on all added or copied content.
 	Timestamp *time.Time
 	// Link, when set to true, creates an independent layer containing the copied content
 	// that sits on top of existing layers. This layer can be cached and reused
@@ -655,6 +655,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						ChownFiles:    nil,
 						ChmodFiles:    nil,
 						IgnoreDevices: userns.RunningInUserNS(),
+						Timestamp:     options.Timestamp,
 					}
 					putErr = copier.Put(putRoot, putDir, putOptions, io.TeeReader(pipeReader, hasher))
 				}
@@ -822,6 +823,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						ChownFiles:      nil,
 						ChmodFiles:      nil,
 						IgnoreDevices:   userns.RunningInUserNS(),
+						Timestamp:       options.Timestamp,
 					}
 					putErr = copier.Put(putRoot, putDir, putOptions, io.TeeReader(pipeReader, hasher))
 				}
