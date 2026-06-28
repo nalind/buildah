@@ -414,30 +414,31 @@ func (s *store) Check(options *CheckOptions) (CheckReport, error) {
 				}
 			}
 		}
-		// Check that we don't have any dangling parent layer references.
-		for id, parent := range report.layerParentsByLayerID {
-			// If this layer doesn't have a parent, no problem.
-			if parent == "" {
-				continue
-			}
-			// If we've already seen a layer with this parent ID, skip it.
-			if _, checked := referencedLayers[parent]; checked {
-				continue
-			}
-			if _, checked := referencedROLayers[parent]; checked {
-				continue
-			}
-			// We haven't seen a layer with the ID that this layer's record
-			// says is its parent's ID.
-
-			// Not recordError2 because we are recording for layer "id"
-			// but the text talks about layer "parent".
-			report.recordLayerErrors(id,
-				fmt.Errorf("%slayer %s: %w", readWriteDesc, parent, ErrLayerMissing))
-		}
 		return struct{}{}, false, nil
 	}); err != nil {
 		return CheckReport{}, err
+	}
+
+	// Check that we don't have any dangling parent layer references.
+	// This runs after all layer stores (RW and RO) have been visited,
+	// so both referencedLayers and referencedROLayers are fully populated.
+	for id, parent := range report.layerParentsByLayerID {
+		if parent == "" {
+			continue
+		}
+		if _, checked := referencedLayers[parent]; checked {
+			continue
+		}
+		if _, checked := referencedROLayers[parent]; checked {
+			continue
+		}
+		if _, isRO := referencedROLayers[id]; isRO {
+			report.recordROLayerErrors(id,
+				fmt.Errorf("read-only layer %s: %w", parent, ErrLayerMissing))
+		} else {
+			report.recordLayerErrors(id,
+				fmt.Errorf("layer %s: %w", parent, ErrLayerMissing))
+		}
 	}
 
 	// This map will track examined images.  If we have multiple stores, read-only ones can
