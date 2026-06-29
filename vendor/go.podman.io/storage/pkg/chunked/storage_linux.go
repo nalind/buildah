@@ -2055,7 +2055,7 @@ func (c *chunkedDiffer) mergeTocEntries(fileType compressedFileType, entries []m
 	}
 	// stargz/estargz doesn't store EndOffset so let's calculate it here
 	lastOffset := c.tocOffset
-	for i := len(mergedEntries) - 1; i >= 0; i-- {
+	for i := range slices.Backward(mergedEntries) {
 		if mergedEntries[i].EndOffset == 0 {
 			mergedEntries[i].EndOffset = lastOffset
 		}
@@ -2064,7 +2064,7 @@ func (c *chunkedDiffer) mergeTocEntries(fileType compressedFileType, entries []m
 		}
 
 		lastChunkOffset := mergedEntries[i].EndOffset
-		for j := len(mergedEntries[i].chunks) - 1; j >= 0; j-- {
+		for j := range slices.Backward(mergedEntries[i].chunks) {
 			mergedEntries[i].chunks[j].EndOffset = lastChunkOffset
 			mergedEntries[i].chunks[j].Size = mergedEntries[i].chunks[j].EndOffset - mergedEntries[i].chunks[j].Offset
 			lastChunkOffset = mergedEntries[i].chunks[j].Offset
