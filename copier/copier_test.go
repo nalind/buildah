@@ -3148,3 +3148,62 @@ func testChmod(t *testing.T) {
 		})
 	}
 }
+
+func TestPutTimestampNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	defer func() { canChroot = couldChroot }()
+	testPutTimestamp(t)
+}
+
+func testPutTimestamp(t *testing.T) {
+	override := time.Unix(1600000000, 0)
+	originalTime := time.Unix(1500000000, 0)
+	uidMap := []idtools.IDMap{{HostID: os.Getuid(), ContainerID: 0, Size: 1}}
+	gidMap := []idtools.IDMap{{HostID: os.Getgid(), ContainerID: 0, Size: 1}}
+
+	t.Run("overrides-archive-entry-timestamps", func(t *testing.T) {
+		root := t.TempDir()
+		archive := makeArchive([]tar.Header{
+			{Name: "subdir/", Typeflag: tar.TypeDir, Mode: 0o755, ModTime: originalTime},
+			{Name: "subdir/file.txt", Typeflag: tar.TypeReg, Size: 3, Mode: 0o644, ModTime: originalTime},
+		}, map[string][]byte{"subdir/file.txt": []byte("abc")})
+		err := Put(root, root, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Timestamp: &override}, archive)
+		require.NoError(t, err)
+
+		for _, name := range []string{"subdir", "subdir/file.txt"} {
+			info, err := os.Lstat(filepath.Join(root, name))
+			require.NoError(t, err)
+			assert.Equal(t, override.Unix(), info.ModTime().Unix(), "%q should have overridden timestamp", name)
+		}
+	})
+
+	t.Run("overrides-created-directory-timestamps", func(t *testing.T) {
+		root := t.TempDir()
+		target := filepath.Join(root, "dest", "nested")
+		archive := makeArchive([]tar.Header{
+			{Name: "a/b/file.txt", Typeflag: tar.TypeReg, Size: 2, Mode: 0o644, ModTime: originalTime},
+		}, map[string][]byte{"a/b/file.txt": []byte("hi")})
+		err := Put(root, target, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Timestamp: &override}, archive)
+		require.NoError(t, err)
+
+		for _, name := range []string{"dest", "dest/nested", "dest/nested/a", "dest/nested/a/b", "dest/nested/a/b/file.txt"} {
+			info, err := os.Lstat(filepath.Join(root, name))
+			require.NoError(t, err)
+			assert.Equal(t, override.Unix(), info.ModTime().Unix(), "%q should have overridden timestamp", name)
+		}
+	})
+
+	t.Run("preserves-original-without-override", func(t *testing.T) {
+		root := t.TempDir()
+		archive := makeArchive([]tar.Header{
+			{Name: "file.txt", Typeflag: tar.TypeReg, Size: 5, Mode: 0o644, ModTime: originalTime},
+		}, map[string][]byte{"file.txt": []byte("hello")})
+		err := Put(root, root, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, archive)
+		require.NoError(t, err)
+
+		info, err := os.Lstat(filepath.Join(root, "file.txt"))
+		require.NoError(t, err)
+		assert.Equal(t, originalTime.Unix(), info.ModTime().Unix())
+	})
+}

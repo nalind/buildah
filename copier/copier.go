@@ -461,6 +461,7 @@ type PutOptions struct {
 	NoOverwriteDirNonDir bool              // instead of quietly overwriting directories with non-directories, return an error
 	NoOverwriteNonDirDir bool              // instead of quietly overwriting non-directories with directories, return an error
 	Rename               map[string]string // rename items with the specified names, or under the specified names
+	Timestamp            *time.Time        // override timestamps on all extracted content
 }
 
 // Put extracts an archive from the bulkReader at the specified directory.
@@ -1938,6 +1939,14 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 		}
 	}
 	directoryModes := make(map[string]os.FileMode)
+	type directoryTimestamp struct {
+		directory    string
+		atime, mtime time.Time
+	}
+	// track directory timestamps so we can restore them after extraction
+	// because creating entries under a directory updates its mtime.
+	var directoryTimestamps []directoryTimestamp
+	timestamp := req.PutOptions.Timestamp
 	ensureDirectoryUnderRoot := func(directory string) error {
 		rel, err := convertToRelSubdirectory(req.Root, directory)
 		if err != nil {
@@ -1955,6 +1964,13 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				// later, but not if we already had an explicitly-provided mode
 				if _, ok := directoryModes[path]; !ok {
 					directoryModes[path] = defaultDirMode
+				}
+				if timestamp != nil {
+					directoryTimestamps = append(directoryTimestamps, directoryTimestamp{
+						directory: path,
+						atime:     timestamp.UTC(),
+						mtime:     timestamp.UTC(),
+					})
 				}
 			} else {
 				// FreeBSD can return EISDIR for "mkdir /":
@@ -2035,16 +2051,11 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 		}
 	}
 	cb := func() error {
-		type directoryAndTimes struct {
-			directory    string
-			atime, mtime time.Time
-		}
-		var directoriesAndTimes []directoryAndTimes
 		defer func() {
-			for i := range directoriesAndTimes {
-				directoryAndTimes := directoriesAndTimes[len(directoriesAndTimes)-i-1]
-				if err := lutimes(false, directoryAndTimes.directory, directoryAndTimes.atime, directoryAndTimes.mtime); err != nil {
-					logrus.Debugf("error setting access and modify timestamps on %q to %s and %s: %v", directoryAndTimes.directory, directoryAndTimes.atime, directoryAndTimes.mtime, err)
+			for i := range directoryTimestamps {
+				timestamps := directoryTimestamps[len(directoryTimestamps)-i-1]
+				if err := lutimes(false, timestamps.directory, timestamps.atime, timestamps.mtime); err != nil {
+					logrus.Debugf("error setting access and modify timestamps on %q to %s and %s: %v", timestamps.directory, timestamps.atime, timestamps.mtime, err)
 				}
 			}
 			for directory, mode := range directoryModes {
@@ -2215,15 +2226,12 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 					// either we removed it and retried, or it was a directory,
 					// in which case we want to just add the new stuff under it
 				}
-				// make a note of the directory's times.  we
-				// might create items under it, which will
-				// cause the mtime to change after we correct
-				// it, so we'll need to correct it again later
-				directoriesAndTimes = append(directoriesAndTimes, directoryAndTimes{
-					directory: path,
-					atime:     hdr.AccessTime,
-					mtime:     hdr.ModTime,
-				})
+				dt := directoryTimestamp{directory: path, atime: hdr.AccessTime, mtime: hdr.ModTime}
+				if timestamp != nil {
+					dt.atime = timestamp.UTC()
+					dt.mtime = dt.atime
+				}
+				directoryTimestamps = append(directoryTimestamps, dt)
 				// set the mode here unconditionally, in case the directory is in
 				// the archive more than once for whatever reason
 				directoryModes[path] = mode
@@ -2294,7 +2302,10 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				}
 			}
 			// set time
-			if hdr.AccessTime.IsZero() || hdr.AccessTime.Before(hdr.ModTime) {
+			if timestamp != nil {
+				hdr.AccessTime = timestamp.UTC()
+				hdr.ModTime = hdr.AccessTime
+			} else if hdr.AccessTime.IsZero() || hdr.AccessTime.Before(hdr.ModTime) {
 				hdr.AccessTime = hdr.ModTime
 			}
 			if err = lutimes(hdr.Typeflag == tar.TypeSymlink, path, hdr.AccessTime, hdr.ModTime); err != nil {
