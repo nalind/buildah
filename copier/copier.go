@@ -1359,8 +1359,6 @@ func checkLinks(item string, req request, info os.FileInfo) (string, os.FileInfo
 }
 
 func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMatcher, idMappings *idtools.IDMappings) (*response, func() error, error) {
-	statRequest := req
-	statRequest.Request = requestStat
 	statResponse := copierHandlerStat(req, pm, idMappings)
 	errorResponse := func(fmtspec string, args ...any) (*response, func() error, error) {
 		return &response{Error: fmt.Sprintf(fmtspec, args...), Stat: statResponse.Stat, Get: getResponse{}}, nil, nil
