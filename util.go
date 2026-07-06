@@ -157,18 +157,14 @@ func extractWithTar(root, src, dest string) error {
 
 	pipeReader, pipeWriter := io.Pipe()
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		getErr = copier.Get(root, src, copier.GetOptions{}, []string{"."}, pipeWriter)
 		pipeWriter.Close()
-		wg.Done()
-	}()
-	wg.Add(1)
-	go func() {
+	})
+	wg.Go(func() {
 		putErr = copier.Put(dest, dest, copier.PutOptions{}, pipeReader)
 		pipeReader.Close()
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	if getErr != nil {

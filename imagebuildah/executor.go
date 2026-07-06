@@ -600,15 +600,16 @@ func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageE
 		// processed like regular steps, and if no modification is done to
 		// layers, its easier to reuse cached layers.
 		if len(b.labels) > 0 {
-			labelLine := "LABEL"
+			var labelLine strings.Builder
+			labelLine.WriteString("LABEL")
 			for _, labelSpec := range b.labels {
 				key, value, _ := strings.Cut(labelSpec, "=")
 				// check only for an empty key since docker allows empty values
 				if key != "" {
-					labelLine += fmt.Sprintf(" %q=%q", key, value)
+					fmt.Fprintf(&labelLine, " %q=%q", key, value)
 				}
 			}
-			appendInstructions = slices.Concat(appendInstructions, []string{labelLine})
+			appendInstructions = slices.Concat(appendInstructions, []string{labelLine.String()})
 		}
 	}
 
@@ -616,16 +617,17 @@ func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageE
 	// at the beginning of the stage so that they affect subsequent RUN instructions and
 	// factor into the image history.
 	if len(b.envs) > 0 {
-		envLine := "ENV"
+		var envLine strings.Builder
+		envLine.WriteString("ENV")
 		for _, envSpec := range b.envs {
 			key, value, hasValue := strings.Cut(envSpec, "=")
 			if hasValue {
-				envLine += fmt.Sprintf(" %q=%q", key, value)
+				fmt.Fprintf(&envLine, " %q=%q", key, value)
 			} else {
 				return "", nil, false, fmt.Errorf("BUG: unresolved environment variable: %q", key)
 			}
 		}
-		prependInstructions = slices.Concat([]string{envLine}, prependInstructions)
+		prependInstructions = slices.Concat([]string{envLine.String()}, prependInstructions)
 	}
 
 	// Create stage labels for all stage images including final stage

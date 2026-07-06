@@ -798,12 +798,10 @@ func testGetSingle(t *testing.T) {
 						pipeReader, pipeWriter := io.Pipe()
 						var getErr error
 						var wg sync.WaitGroup
-						wg.Add(1)
-						go func() {
+						wg.Go(func() {
 							getErr = Get(root, topdir, getOptions, []string{name}, pipeWriter)
 							pipeWriter.Close()
-							wg.Done()
-						}()
+						})
 						tr := tar.NewReader(pipeReader)
 						hdr, err := tr.Next()
 						for err == nil {
@@ -823,12 +821,10 @@ func testGetSingle(t *testing.T) {
 											getOptions.StripSetgidBit = stripSetgidBit
 											getOptions.StripStickyBit = stripStickyBit
 											pipeReader, pipeWriter := io.Pipe()
-											wg.Add(1)
-											go func() {
+											wg.Go(func() {
 												getErr = Get(root, topdir, getOptions, []string{name}, pipeWriter)
 												pipeWriter.Close()
-												wg.Done()
-											}()
+											})
 											tr := tar.NewReader(pipeReader)
 											hdr, err := tr.Next()
 											for err == nil {
@@ -1605,12 +1601,10 @@ func testGetMultiple(t *testing.T) {
 					pipeReader, pipeWriter := io.Pipe()
 					var getErr error
 					var wg sync.WaitGroup
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
+					wg.Go(func() {
 						getErr = Get(root, topdir, getOptions, []string{testCase.pattern}, pipeWriter)
 						pipeWriter.Close()
-					}()
+					})
 					tr := tar.NewReader(pipeReader)
 					hdr, err := tr.Next()
 					actualContents := []string{}
@@ -3096,13 +3090,11 @@ func testChmod(t *testing.T) {
 
 			pipeReader, pipeWriter := io.Pipe()
 			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				opts := GetOptions{Chmod: v.chmod, ChmodDirs: v.chmodDirs, ChmodFiles: v.chmodFiles}
 				err = Get(testDir, "", opts, []string{name}, pipeWriter)
 				pipeWriter.Close()
-				wg.Done()
-			}()
+			})
 			tr := tar.NewReader(pipeReader)
 			hdr, tarErr := tr.Next()
 			for tarErr == nil {

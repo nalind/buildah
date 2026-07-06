@@ -837,20 +837,16 @@ func copierWithSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req reques
 	stdoutRead = nil
 	var wg sync.WaitGroup
 	var readError, writeError error
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		_, writeError = io.Copy(bulkWriter, bulkWriterRead)
 		bulkWriterRead.Close()
 		bulkWriterRead = nil
-		wg.Done()
-	}()
-	wg.Add(1)
-	go func() {
+	})
+	wg.Go(func() {
 		_, readError = io.Copy(bulkReaderWrite, bulkReader)
 		bulkReaderWrite.Close()
 		bulkReaderWrite = nil
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 	cmdToWaitFor = nil
 	if err = cmd.Wait(); err != nil {
