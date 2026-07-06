@@ -199,7 +199,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 	if mutate != nil {
 		mutate(&test)
 	}
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	cwd, err := os.Getwd()
 	require.NoError(t, err, "error finding current directory")
@@ -4204,7 +4204,7 @@ func TestCommit(t *testing.T) {
 		dockerDir = filepath.Join(tempdir, "docker")
 	}
 
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	// connect to dockerd using go-dockerclient
 	client, err := docker.NewClientFromEnv()
