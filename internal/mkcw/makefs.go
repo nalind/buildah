@@ -1,6 +1,7 @@
 package mkcw
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -13,19 +14,25 @@ import (
 // Recognized filesystem types are "btrfs", "ext2", "ext3", "ext4", and "xfs".
 // Note that krun's init is currently hard-wired to assume "ext4".
 // Returns the stdout, stderr, and any error returned by the mkfs command.
-func MakeFS(sourcePath, imageFile, filesystem string) (string, string, error) {
+func MakeFS(ctx context.Context, sourcePath, imageFile, filesystem string) (string, string, error) {
+	select {
+	case <-ctx.Done():
+		return "", "", ctx.Err()
+	default:
+	}
+
 	var stdout, stderr strings.Builder
 	switch filesystem {
 	case "ext2", "ext3", "ext4":
 		logrus.Debugf("mkfs -t %s --rootdir %q %q", filesystem, sourcePath, imageFile)
-		cmd := exec.Command("mkfs", "-t", filesystem, "-d", sourcePath, imageFile)
+		cmd := exec.CommandContext(ctx, "mkfs", "-t", filesystem, "-d", sourcePath, imageFile)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		err := cmd.Run()
 		return stdout.String(), stderr.String(), err
 	case "btrfs":
 		logrus.Debugf("mkfs -t %s --rootdir %q %q", filesystem, sourcePath, imageFile)
-		cmd := exec.Command("mkfs", "-t", filesystem, "--rootdir", sourcePath, imageFile)
+		cmd := exec.CommandContext(ctx, "mkfs", "-t", filesystem, "--rootdir", sourcePath, imageFile)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		err := cmd.Run()
@@ -35,7 +42,7 @@ func MakeFS(sourcePath, imageFile, filesystem string) (string, string, error) {
 		// available in xfsprogs-6.17.0 or later; before that, it only accepts prototype
 		// files
 		logrus.Debugf("mkfs -t %s -p %q %q", filesystem, sourcePath, imageFile)
-		cmd := exec.Command("mkfs", "-t", filesystem, "-p", sourcePath, imageFile)
+		cmd := exec.CommandContext(ctx, "mkfs", "-t", filesystem, "-p", sourcePath, imageFile)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		err := cmd.Run()
