@@ -280,8 +280,7 @@ func TestTarFilterer(t *testing.T) {
 			output := make(map[string]string)
 			pipeReader, pipeWriter := io.Pipe()
 			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				tr := tar.NewReader(pipeReader)
 				hdr, err := tr.Next()
 				for err == nil {
@@ -295,8 +294,7 @@ func TestTarFilterer(t *testing.T) {
 				}
 				require.Equal(t, io.EOF, err, "unexpected error ended our tarstream read")
 				pipeReader.Close()
-				wg.Done()
-			}()
+			})
 			filterer := newTarFilterer(pipeWriter, test.filter)
 			_, err := io.Copy(filterer, &buffer)
 			require.Nil(t, err, "unexpected error copying archive through filter to reader")

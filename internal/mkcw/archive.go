@@ -552,8 +552,7 @@ func slop(size int64, slop string) int64 {
 		if factor == "" {
 			continue
 		}
-		if strings.HasSuffix(factor, "%") {
-			percentage := strings.TrimSuffix(factor, "%")
+		if percentage, ok := strings.CutSuffix(factor, "%"); ok {
 			percent, err := strconv.ParseInt(percentage, 10, 8)
 			if err != nil {
 				logrus.Warnf("parsing percentage %q: %v", factor, err)

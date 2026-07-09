@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -100,8 +101,7 @@ func newTarFilterer(writeCloser io.WriteCloser, filter func(hdr *tar.Header) (sk
 	filterer := &tarFilterer{
 		pipeWriter: pipeWriter,
 	}
-	filterer.wg.Add(1)
-	go func() {
+	filterer.wg.Go(func() {
 		filterer.closedLock.Lock()
 		closed := filterer.closed
 		filterer.closedLock.Unlock()
@@ -161,8 +161,7 @@ func newTarFilterer(writeCloser io.WriteCloser, filter func(hdr *tar.Header) (sk
 		} else {
 			pipeReader.Close()
 		}
-		filterer.wg.Done()
-	}()
+	})
 	return filterer
 }
 
@@ -270,17 +269,17 @@ func (c *CompositeDigester) Digest() (string, digest.Digest) {
 	case 1:
 		return c.digesters[0].ContentType(), c.digesters[0].Digest()
 	default:
-		content := ""
+		var content strings.Builder
 		for i, digester := range c.digesters {
 			if i > 0 {
-				content += ","
+				content.WriteString(",")
 			}
 			contentType := digester.ContentType()
 			if contentType != "" {
 				contentType += ":"
 			}
-			content += contentType + digester.Digest().Encoded()
+			content.WriteString(contentType + digester.Digest().Encoded())
 		}
-		return "multi", digest.Canonical.FromString(content)
+		return "multi", digest.Canonical.FromString(content.String())
 	}
 }

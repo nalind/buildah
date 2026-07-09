@@ -636,8 +636,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 				}()
 			}
 
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				b.ContentDigester.Start("")
 				hashCloser := b.ContentDigester.Hash()
 				hasher := io.Writer(hashCloser)
@@ -661,8 +660,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 				}
 				hashCloser.Close()
 				pipeReader.Close()
-				wg.Done()
-			}()
+			})
 			wg.Wait()
 			if getErr != nil {
 				getErr = fmt.Errorf("reading %q: %w", src, getErr)
@@ -739,8 +737,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 				latestTimestamp = st.ModTime
 			}
 			pipeReader, pipeWriter := io.Pipe()
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				renamedItems := 0
 				writer := io.WriteCloser(pipeWriter)
 				if renameTarget != "" {
@@ -796,10 +793,8 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 				if renameTarget != "" && renamedItems > 1 {
 					renameErr = fmt.Errorf("internal error: renamed %d items when we expected to only rename 1", renamedItems)
 				}
-				wg.Done()
-			}()
-			wg.Add(1)
-			go func() {
+			})
+			wg.Go(func() {
 				if st.IsDir {
 					b.ContentDigester.Start("dir")
 				} else {
@@ -829,8 +824,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 				}
 				hashCloser.Close()
 				pipeReader.Close()
-				wg.Done()
-			}()
+			})
 
 			wg.Wait()
 			if getErr != nil {

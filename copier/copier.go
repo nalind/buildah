@@ -837,20 +837,16 @@ func copierWithSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req reques
 	stdoutRead = nil
 	var wg sync.WaitGroup
 	var readError, writeError error
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		_, writeError = io.Copy(bulkWriter, bulkWriterRead)
 		bulkWriterRead.Close()
 		bulkWriterRead = nil
-		wg.Done()
-	}()
-	wg.Add(1)
-	go func() {
+	})
+	wg.Go(func() {
 		_, readError = io.Copy(bulkReaderWrite, bulkReader)
 		bulkReaderWrite.Close()
 		bulkReaderWrite = nil
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 	cmdToWaitFor = nil
 	if err = cmd.Wait(); err != nil {
@@ -1359,8 +1355,6 @@ func checkLinks(item string, req request, info os.FileInfo) (string, os.FileInfo
 }
 
 func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMatcher, idMappings *idtools.IDMappings) (*response, func() error, error) {
-	statRequest := req
-	statRequest.Request = requestStat
 	statResponse := copierHandlerStat(req, pm, idMappings)
 	errorResponse := func(fmtspec string, args ...any) (*response, func() error, error) {
 		return &response{Error: fmt.Sprintf(fmtspec, args...), Stat: statResponse.Stat, Get: getResponse{}}, nil, nil

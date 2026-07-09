@@ -361,8 +361,7 @@ func joinExcludePatternWithCopySource(srcNorm, excl string) string {
 	if srcNorm == "." {
 		return excl
 	}
-	if strings.HasPrefix(excl, "!") {
-		rest := strings.TrimPrefix(excl, "!")
+	if rest, ok := strings.CutPrefix(excl, "!"); ok {
 		if rest == "" {
 			return excl
 		}
@@ -840,11 +839,12 @@ func (s *stageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 				args = []string{run.Files[0].Data}
 			}
 		} else {
-			full := args[0]
+			var full strings.Builder
+			full.WriteString(args[0])
 			for _, file := range run.Files {
-				full += file.Data + "\n" + file.Name
+				full.WriteString(file.Data + "\n" + file.Name)
 			}
-			args = []string{full}
+			args = []string{full.String()}
 		}
 	}
 	stageMountPoints, err := s.runStageMountPoints(slices.Concat(run.Mounts, s.executor.transientRunMounts))
@@ -2055,7 +2055,7 @@ func (s *stageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 	case "RUN":
 		shArg := ""
 		buildArgs := s.getBuildArgsResolvedForRun()
-		appendCheckSum := ""
+		var appendCheckSum strings.Builder
 		for _, flag := range node.Flags {
 			var err error
 			mountOptionSource := ""
@@ -2118,7 +2118,7 @@ func (s *stageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 			}
 			if mountCheckSum != "" {
 				// add a separator to appendCheckSum
-				appendCheckSum += ":" + mountCheckSum
+				appendCheckSum.WriteString(":" + mountCheckSum)
 			}
 		}
 		if len(node.Original) > 4 {
@@ -2136,7 +2136,7 @@ func (s *stageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 		if buildArgs != "" {
 			result = result + "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " "
 		}
-		result = result + "/bin/sh -c " + shArg + heredoc + appendCheckSum + labelsAndAnnotations
+		result = result + "/bin/sh -c " + shArg + heredoc + appendCheckSum.String() + labelsAndAnnotations
 		return result, nil
 	case "ADD", "COPY":
 		destination := node
@@ -2815,9 +2815,9 @@ func (s *stageExecutor) EnsureContainerPathAs(path, user string, mode *os.FileMo
 // flag set differently should be reflected in its result.  Some build settings
 // only take affect at the final step, so only note those when they're applied.
 func (s *stageExecutor) buildMetadata(isLastStep bool, isAddOrCopy bool) string {
-	unsetLabels := ""
+	var unsetLabels strings.Builder
 	inheritLabels := ""
-	unsetAnnotations := ""
+	var unsetAnnotations strings.Builder
 	inheritAnnotations := ""
 	newAnnotations := ""
 	layerMutations := ""
@@ -2828,12 +2828,12 @@ func (s *stageExecutor) buildMetadata(isLastStep bool, isAddOrCopy bool) string 
 	}
 	// If --unsetlabel was used to clear a label, make a note of it.
 	for _, label := range s.executor.unsetLabels {
-		unsetLabels += "|unsetLabel=" + label
+		unsetLabels.WriteString("|unsetLabel=" + label)
 	}
 	if isLastStep {
 		// If --unsetannotation was used to clear an annotation, make a note of it.
 		for _, annotation := range s.executor.unsetAnnotations {
-			unsetAnnotations += "|unsetAnnotation=" + annotation
+			unsetAnnotations.WriteString("|unsetAnnotation=" + annotation)
 		}
 		// If --inherit-annotation was manually set to false then we cleared the inherited annotations.
 		if s.executor.inheritAnnotations == types.OptionalBoolFalse {
@@ -2866,7 +2866,7 @@ func (s *stageExecutor) buildMetadata(isLastStep bool, isAddOrCopy bool) string 
 	}
 
 	if isAddOrCopy {
-		return unsetLabels + " " + inheritLabels + " " + unsetAnnotations + " " + inheritAnnotations + " " + layerMutations + " " + newAnnotations
+		return unsetLabels.String() + " " + inheritLabels + " " + unsetAnnotations.String() + " " + inheritAnnotations + " " + layerMutations + " " + newAnnotations
 	}
-	return unsetLabels + inheritLabels + unsetAnnotations + inheritAnnotations + layerMutations + newAnnotations
+	return unsetLabels.String() + inheritLabels + unsetAnnotations.String() + inheritAnnotations + layerMutations + newAnnotations
 }

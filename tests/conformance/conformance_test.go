@@ -233,26 +233,22 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 	pipeReader, pipeWriter := io.Pipe()
 	var getErr, putErr error
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		if test.contextDir != "" {
 			getErr = copier.Get("", testDataDir, copier.GetOptions{}, []string{test.contextDir}, pipeWriter)
 		} else if test.dockerfile != "" {
 			getErr = copier.Get("", testDataDir, copier.GetOptions{}, []string{test.dockerfile}, pipeWriter)
 		}
 		pipeWriter.Close()
-		wg.Done()
-	}()
-	wg.Add(1)
-	go func() {
+	})
+	wg.Go(func() {
 		if test.contextDir != "" || test.dockerfile != "" {
 			putErr = copier.Put("", contextDir, copier.PutOptions{}, pipeReader)
 		} else {
 			putErr = os.Mkdir(contextDir, 0o755)
 		}
 		pipeReader.Close()
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 	assert.NoErrorf(t, getErr, "error reading build info from %q", filepath.Join("testdata", test.dockerfile))
 	assert.NoErrorf(t, putErr, "error writing build info to %q", contextDir)
