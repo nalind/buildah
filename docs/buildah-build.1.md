@@ -678,7 +678,7 @@ Sets the configuration for network namespaces when handling `RUN` instructions.
 
 Valid _mode_ values are:
 
-- **none**: no networking. Invalid if using **--dns**, **--dns-opt**, or **--dns-search**;
+- **none**: no networking. Invalid if using **--dns**, **--dns-option**, or **--dns-search**;
 - **host**: use the host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure;
 - **ns:**_path_: path to a network namespace to join;
 - **private**: create a new namespace for the container (default)
