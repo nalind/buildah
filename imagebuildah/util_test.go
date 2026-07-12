@@ -10,7 +10,51 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
+	"go.podman.io/buildah/define"
 )
+
+func TestGetFromAndSourceKeysFromMountFlag(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		mount    string
+		expected mountInfo
+	}{
+		{
+			name:     "type omitted defaults to bind",
+			mount:    "--mount=src=/foo,target=/bar",
+			expected: mountInfo{Type: define.TypeBind, Source: "/foo"},
+		},
+		{
+			name:     "explicit bind type",
+			mount:    "--mount=type=bind,src=/foo,target=/bar",
+			expected: mountInfo{Type: "bind", Source: "/foo"},
+		},
+		{
+			name:     "cache type is not treated as bind",
+			mount:    "--mount=type=cache,target=/bar",
+			expected: mountInfo{Type: "cache"},
+		},
+		{
+			name:     "tmpfs type is not treated as bind",
+			mount:    "--mount=type=tmpfs,target=/bar",
+			expected: mountInfo{Type: "tmpfs"},
+		},
+		{
+			name:     "from without type defaults to bind",
+			mount:    "--mount=from=builder,src=/foo,target=/bar",
+			expected: mountInfo{Type: define.TypeBind, Source: "/foo", From: "builder"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, getFromAndSourceKeysFromMountFlag(tt.mount))
+		})
+	}
+}
 
 func TestGeneratePathChecksum(t *testing.T) {
 	t.Parallel()
