@@ -35,9 +35,9 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323
 	go.etcd.io/bbolt v1.5.0
-	go.podman.io/common v0.68.2-0.20260708163251-9ba4d114a7dc
-	go.podman.io/image/v5 v5.40.1-0.20260708163251-9ba4d114a7dc
-	go.podman.io/storage v1.63.1-0.20260708163251-9ba4d114a7dc
+	go.podman.io/common v0.68.2-0.20260710152621-629dae593a5b
+	go.podman.io/image/v5 v5.40.1-0.20260710152621-629dae593a5b
+	go.podman.io/storage v1.63.1-0.20260710152621-629dae593a5b
 	golang.org/x/crypto v0.54.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
