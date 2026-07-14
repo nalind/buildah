@@ -41,12 +41,16 @@ func TestCommonBuildOptionsSeccompFromConfig(t *testing.T) {
 
 	defaultOptions := new(define.CommonBuildOptions)
 	require.NoError(t, parseSecurityOpts(nil, defaultOptions))
+	if !supportsSeccomp {
+		assert.Empty(t, defaultOptions.SeccompProfilePath)
+	}
 
 	tests := []struct {
-		name            string
-		containersConf  string
-		securityOpts    []string
-		expectedProfile string
+		name                         string
+		containersConf               string
+		securityOpts                 []string
+		expectedProfile              string
+		expectErrorWithoutSeccompTag bool
 	}{
 		{
 			name:            "configured unconfined",
@@ -54,10 +58,17 @@ func TestCommonBuildOptionsSeccompFromConfig(t *testing.T) {
 			expectedProfile: "unconfined",
 		},
 		{
-			name:            "command line overrides config",
-			containersConf:  "[containers]\nseccomp_profile = \"unconfined\"\n",
-			securityOpts:    []string{"seccomp=/tmp/custom-seccomp.json"},
-			expectedProfile: "/tmp/custom-seccomp.json",
+			name:                         "command line overrides config",
+			containersConf:               "[containers]\nseccomp_profile = \"unconfined\"\n",
+			securityOpts:                 []string{"seccomp=/tmp/custom-seccomp.json"},
+			expectedProfile:              "/tmp/custom-seccomp.json",
+			expectErrorWithoutSeccompTag: true,
+		},
+		{
+			name:                         "configured custom profile",
+			containersConf:               "[containers]\nseccomp_profile = \"/tmp/custom-seccomp.json\"\n",
+			expectedProfile:              "/tmp/custom-seccomp.json",
+			expectErrorWithoutSeccompTag: true,
 		},
 		{
 			name:            "no configured profile",
@@ -74,6 +85,10 @@ func TestCommonBuildOptionsSeccompFromConfig(t *testing.T) {
 
 			fs := newCommonBuildOptionsFlagSet(t, test.securityOpts)
 			commonOpts, err := CommonBuildOptionsFromFlagSet(fs, fs.Lookup)
+			if test.expectErrorWithoutSeccompTag && !supportsSeccomp {
+				require.ErrorContains(t, err, "seccomp support is not enabled in this build")
+				return
+			}
 			require.NoError(t, err)
 			assert.Equal(t, test.expectedProfile, commonOpts.SeccompProfilePath)
 		})
