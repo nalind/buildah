@@ -24,6 +24,12 @@ on:
 
 permissions: {}
 
+env:
+  # CI automation repo release for the VM image downloads in ci.sh.
+  # ENV is managed by renovate, do not change the name without
+  # updating the renovate config in the automation repo.
+  AUTOMATION_RELEASE: 20260707t092805z
+
 jobs:
   lima:
     name: lima # main name is set by who spawns this job
