@@ -1,7 +1,7 @@
 ---
 
 # See also:
-# https://github.com/containers/podman/blob/main/.github/workflows/issue_pr_lock.yml
+# https://github.com/podman-container-tools/podman/blob/main/.github/workflows/issue_pr_lock.yml
 
 on:
   schedule:
@@ -14,7 +14,7 @@ on:
 jobs:
   # Ref: https://docs.github.com/en/actions/using-workflows/reusing-workflows
   closed_issue_discussion_lock:
-    uses: containers/podman/.github/workflows/issue_pr_lock.yml@main
+    uses: podman-container-tools/podman/.github/workflows/issue_pr_lock.yml@main
     secrets: inherit
     permissions:
       contents: read
