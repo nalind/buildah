@@ -179,3 +179,13 @@ func TestTarPutChroot(t *testing.T) {
 	defer func() { canChroot = couldChroot }()
 	testTarPut(t)
 }
+
+func TestPutCreateDestPathChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	defer func() { canChroot = couldChroot }()
+	testPutCreateDestPath(t)
+}

@@ -3199,3 +3199,60 @@ func testPutTimestamp(t *testing.T) {
 		assert.Equal(t, originalTime.Unix(), info.ModTime().Unix())
 	})
 }
+
+func TestPutCreateDestPathNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	defer func() { canChroot = couldChroot }()
+	testPutCreateDestPath(t)
+}
+
+func testPutCreateDestPath(t *testing.T) {
+	uidMap := []idtools.IDMap{{HostID: os.Getuid(), ContainerID: 0, Size: 1}}
+	gidMap := []idtools.IDMap{{HostID: os.Getgid(), ContainerID: 0, Size: 1}}
+
+	archive := func() io.Reader {
+		return bytes.NewReader(makeArchiveSlice([]tar.Header{
+			{Name: "file.txt", Typeflag: tar.TypeReg, Size: 5, Mode: 0o644, ModTime: testDate},
+		}))
+	}
+
+	testCases := []struct {
+		name           string
+		createDestPath types.OptionalBool
+		destExists     bool
+		fail           bool
+	}{
+		{name: "unset-creates-dest", destExists: false},
+		{name: "true-creates-dest", createDestPath: types.OptionalBoolTrue, destExists: false},
+		{name: "false-missing-dest-fails", createDestPath: types.OptionalBoolFalse, destExists: false, fail: true},
+		{name: "false-existing-dest-succeeds", createDestPath: types.OptionalBoolFalse, destExists: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			dest := filepath.Join(root, "dest")
+			if tc.destExists {
+				require.NoError(t, os.Mkdir(dest, 0o755))
+			}
+
+			opts := PutOptions{UIDMap: uidMap, GIDMap: gidMap, CreateDestPath: tc.createDestPath}
+			err := Put(root, dest, opts, archive())
+
+			if tc.fail {
+				require.ErrorContains(t, err, "does not exist and CreateDestPath is false",
+					"expected the CreateDestPath guard to reject a missing destination")
+				return
+			}
+			require.NoError(t, err)
+
+			info, err := os.Stat(dest)
+			require.NoError(t, err, "destination should exist")
+			require.True(t, info.IsDir(), "destination should be a directory")
+
+			_, err = os.Stat(filepath.Join(dest, "file.txt"))
+			require.NoError(t, err, "file should have been written into dest")
+		})
+	}
+}
