@@ -4246,7 +4246,7 @@ _EOF
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${imgName} -f $BUDFILES/copy-chown/Dockerfile.bad $BUDFILES/copy-chown
-  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> --from=<image\|stage> and the --exclude=<pattern> flags"
+  expect_output --substring "COPY only supports the --chmod=<permissions>, --chown=<uid:gid>, --from=<image\|stage>, and --exclude=<pattern> flags"
 }
 
 @test "bud with chown copy with unknown substitutions in Dockerfile" {
@@ -4274,7 +4274,7 @@ _EOF
   imgName=alpine-image
   ctrName=alpine-chmod
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${imgName} -f $BUDFILES/copy-chmod/Dockerfile.bad $BUDFILES/copy-chmod
-  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> --from=<image\|stage> and the --exclude=<pattern> flags"
+  expect_output --substring "COPY only supports the --chmod=<permissions>, --chown=<uid:gid>, --from=<image\|stage>, and --exclude=<pattern> flags"
 }
 
 @test "bud with chmod add" {
@@ -4310,7 +4310,7 @@ _EOF
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${imgName} -f $BUDFILES/add-chown/Dockerfile.bad $BUDFILES/add-chown
-  expect_output --substring "ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, and --checksum=<checksum> --exclude=<pattern> flags"
+  expect_output --substring "ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, --checksum=<checksum>, and --exclude=<pattern> flags"
 }
 
 @test "bud with chmod add with bad chmod flag in Dockerfile with --layers" {
@@ -4318,7 +4318,7 @@ _EOF
   imgName=alpine-image
   ctrName=alpine-chmod
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${imgName} -f $BUDFILES/add-chmod/Dockerfile.bad $BUDFILES/add-chmod
-  expect_output --substring "ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, and --checksum=<checksum> --exclude=<pattern> flags"
+  expect_output --substring "ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, --checksum=<checksum>, and --exclude=<pattern> flags"
 }
 
 @test "bud with ADD with checksum flag" {
@@ -4341,7 +4341,7 @@ _EOF
   _prefetch alpine
   target=alpine-image
   run_buildah 125 build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/add-checksum/Containerfile.bad $BUDFILES/add-checksum
-  expect_output --substring "ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, and --checksum=<checksum> --exclude=<pattern> flags"
+  expect_output --substring "ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, --checksum=<checksum>, and --exclude=<pattern> flags"
 }
 
 @test "bud with ADD file construct" {
@@ -4436,7 +4436,7 @@ _EOF
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah 125 build $WITH_POLICY_JSON -f $BUDFILES/copy-multistage-paths/Dockerfile.invalid_from -t ${imgName} $BUDFILES/copy-multistage-paths
-  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> --from=<image\|stage> and the --exclude=<pattern> flags"
+  expect_output --substring "COPY only supports the --chmod=<permissions>, --chown=<uid:gid>, --from=<image\|stage>, and --exclude=<pattern> flags"
 }
 
 @test "bud COPY to root succeeds" {
@@ -4645,7 +4645,7 @@ _EOF
   _prefetch busybox
   target=bad-from-flag
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${target} -f $BUDFILES/copy-from/Dockerfile.bad $BUDFILES/copy-from
-  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> --from=<image\|stage> and the --exclude=<pattern> flags"
+  expect_output --substring "COPY only supports the --chmod=<permissions>, --chown=<uid:gid>, --from=<image\|stage>, and --exclude=<pattern> flags"
 }
 
 @test "bud with copy-from referencing the base image" {
