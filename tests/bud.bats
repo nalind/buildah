@@ -9589,6 +9589,22 @@ EOF
   diff "${out_path}.a" "${out_path}.b"
 }
 
+@test "build-explicitly-from-storage" {
+  _prefetch busybox
+  run_buildah inspect --type=image --format '{{.FromImageID}}' busybox
+  local iid="${output}"
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p "${contextdir}"
+  cat > "${contextdir}"/Containerfile <<- _EOF
+  ARG BASE=containers-storage:busybox
+  FROM \$BASE
+  RUN date | tee /root/date.txt
+_EOF
+  for base in containers-storage:docker.io/library/busybox containers-storage:docker.io/busybox containers-storage:busybox containers-storage:${iid}; do
+    run_buildah build --build-arg BASE="${base}" "${contextdir}"
+  done
+}
+
 @test "build-with-run-image-mount" {
   _prefetch busybox
   local contextdir=${TEST_SCRATCH_DIR}/context
