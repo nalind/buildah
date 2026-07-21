@@ -24,6 +24,7 @@ import (
 	"go.podman.io/image/v5/signature"
 	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/transports/alltransports"
+	"go.podman.io/storage"
 	"go.podman.io/storage/pkg/reexec"
 )
 
@@ -37,6 +38,18 @@ func TestMain(m *testing.M) {
 }
 
 func TestSanitizeImageName(t *testing.T) {
+	storageRoot, storageRunRoot := t.TempDir(), t.TempDir()
+	store, err := storage.GetStore(storage.StoreOptions{
+		GraphRoot:       storageRoot,
+		RunRoot:         storageRunRoot,
+		GraphDriverName: "vfs",
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := store.Shutdown(false)
+		assert.NoError(t, err)
+	})
+
 	const badLinkTarget = "../../../../../../../../../../../etc/passwd"
 
 	// prepare to copy from the layout to other types of destinations
@@ -361,19 +374,19 @@ func TestSanitizeImageName(t *testing.T) {
 	// sanitize them all
 	goodLayoutRel, err := filepath.Rel(contextDir, goodLayout)
 	require.NoErrorf(t, err, "converting absolute path %q to a relative one", goodLayout)
-	newGoodLayout, err := ImageName("oci", goodLayoutRel, contextDir, t.TempDir())
+	newGoodLayout, err := ImageName(store, "oci", goodLayoutRel, contextDir, t.TempDir())
 	require.NoError(t, err, "sanitizing good OCI layout")
 	goodDirRel, err := filepath.Rel(contextDir, goodDir)
 	require.NoErrorf(t, err, "converting absolute path %q to a relative one", goodDir)
-	newGoodDir, err := ImageName("dir", goodDirRel, contextDir, t.TempDir())
+	newGoodDir, err := ImageName(store, "dir", goodDirRel, contextDir, t.TempDir())
 	require.NoError(t, err, "sanitizing good directory")
 	goodOCIArchiveRel, err := filepath.Rel(contextDir, goodOCIArchive)
 	require.NoErrorf(t, err, "converting absolute path %q to a relative one", goodOCIArchive)
-	newGoodOCIArchive, err := ImageName("oci-archive", goodOCIArchiveRel, contextDir, t.TempDir())
+	newGoodOCIArchive, err := ImageName(store, "oci-archive", goodOCIArchiveRel, contextDir, t.TempDir())
 	require.NoError(t, err, "sanitizing good OCI archive")
 	goodDockerArchiveRel, err := filepath.Rel(contextDir, goodDockerArchive)
 	require.NoErrorf(t, err, "converting absolute path %q to a relative one", goodDockerArchive)
-	newGoodDockerArchive, err := ImageName("docker-archive", goodDockerArchiveRel, contextDir, t.TempDir())
+	newGoodDockerArchive, err := ImageName(store, "docker-archive", goodDockerArchiveRel, contextDir, t.TempDir())
 	require.NoError(t, err, "sanitizing good docker archive")
 
 	// make sure the sanitized versions can all be read without error
@@ -386,24 +399,24 @@ func TestSanitizeImageName(t *testing.T) {
 	badLayout := mutateDirectory(t, contextDir, goodLayout, filepath.Join(v1.ImageBlobsDir, blobDigest.Algorithm().String(), blobDigest.Encoded()))
 	badLayoutRel, err := filepath.Rel(contextDir, badLayout)
 	require.NoErrorf(t, err, "converting absolute path %q to a relative one", badLayout)
-	_, err = ImageName("oci", badLayoutRel, contextDir, t.TempDir())
+	_, err = ImageName(store, "oci", badLayoutRel, contextDir, t.TempDir())
 	require.ErrorIs(t, err, os.ErrNotExist, "sanitizing bad OCI layout")
 
 	badDir := mutateDirectory(t, contextDir, goodDir, blobDigest.Encoded())
 	badDirRel, err := filepath.Rel(contextDir, badDir)
 	require.NoErrorf(t, err, "converting absolute path %q to a relative one", badDir)
-	_, err = ImageName("dir", badDirRel, contextDir, t.TempDir())
+	_, err = ImageName(store, "dir", badDirRel, contextDir, t.TempDir())
 	require.ErrorIs(t, err, os.ErrNotExist, "sanitizing bad directory")
 
 	badOCIArchive := mutateArchive(t, contextDir, goodOCIArchive, filepath.Join(v1.ImageBlobsDir, blobDigest.Algorithm().String(), blobDigest.Encoded()))
 	badOCIArchiveRel, err := filepath.Rel(contextDir, badOCIArchive)
 	require.NoErrorf(t, err, "converting absolute path %q to a relative one", badOCIArchive)
-	_, err = ImageName("oci-archive", badOCIArchiveRel, contextDir, t.TempDir())
+	_, err = ImageName(store, "oci-archive", badOCIArchiveRel, contextDir, t.TempDir())
 	require.ErrorContains(t, err, "invalid symbolic link", "sanitizing bad oci archive")
 
 	badDockerArchive := mutateArchive(t, contextDir, goodDockerArchive, diffDigest.Encoded()+".tar")
 	badDockerArchiveRel, err := filepath.Rel(contextDir, badDockerArchive)
 	require.NoErrorf(t, err, "converting absolute path %q to a relative one", badDockerArchive)
-	_, err = ImageName("docker-archive", badDockerArchiveRel, contextDir, t.TempDir())
+	_, err = ImageName(store, "docker-archive", badDockerArchiveRel, contextDir, t.TempDir())
 	require.ErrorContains(t, err, "invalid symbolic link", "sanitizing bad docker archive")
 }

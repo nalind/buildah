@@ -997,7 +997,7 @@ func (s *stageExecutor) sanitizeFrom(from, tmpdir string) (newFrom string, err e
 		return "", fmt.Errorf("parsing image name %q: %w", from, err)
 	}
 	// TODO: drop this part and just return an error... someday
-	return sanitize.ImageName(transportName, restOfImageName, s.executor.contextDir, tmpdir)
+	return sanitize.ImageName(s.executor.store, transportName, restOfImageName, s.executor.contextDir, tmpdir)
 }
 
 // prepare creates a working container based on the specified image, or if one
