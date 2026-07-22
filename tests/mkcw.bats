@@ -7,7 +7,7 @@ function mkcw_check_image() {
   # Mount the container and take a look at what it got from the image.
   run_buildah from "$imageID"
   local ctrID="$output"
-  run_buildah mount "$ctrID"
+  run_buildah_mount "$ctrID"
   local mountpoint="$output"
   # Should have a /disk.img file.
   test -s "$mountpoint"/disk.img
@@ -50,7 +50,7 @@ function mkcw_check_image() {
   # shows nothing but `dmsetup info -c $uuid` shows the device is still
   # under use. Adding `--retry` in between somehow fixes this.
   run_with_log --retry cryptsetup luksClose "$uuid"
-  run_buildah umount "$ctrID"
+  run_buildah_umount "$ctrID"
 }
 
 @test "mkcw-convert" {

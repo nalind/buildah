@@ -14,6 +14,7 @@ import (
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.podman.io/buildah"
 	"go.podman.io/buildah/define"
 	"go.podman.io/buildah/pkg/cli"
@@ -140,6 +141,16 @@ func mainInit() {
 	rootCmd.AddGroup(commandGroups...)
 }
 
+func getInheritedFlags(c *cobra.Command) []string {
+	var flags []string
+	c.InheritedFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Changed {
+			flags = append(flags, fmt.Sprintf("--%s=%s", f.Name, f.Value.String()))
+		}
+	})
+	return flags
+}
+
 func initConfig() {
 	// TODO Cobra allows us to do extra stuff here at init
 	// time if we ever want to take advantage.
@@ -162,7 +173,7 @@ func before(cmd *cobra.Command) error {
 	}
 
 	switch cmd.Use {
-	case "", "help", "version", "mount":
+	case "", "help", "version", "mount", mountSshfs, umountSshfs:
 		return nil
 	}
 	debugCapabilities()
@@ -272,6 +283,7 @@ func main() {
 	rmInit()
 	rpcInit()
 	runInit()
+	sftpInit()
 	sourceInit()
 	tagInit()
 	umountInit()

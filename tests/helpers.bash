@@ -13,6 +13,7 @@ CRASH_BINARY=${CRASH_BINARY:-$TEST_SOURCES/../bin/crash}
 WAIT_BINARY=${WAIT_BINARY:-$TEST_SOURCES/../bin/wait}
 PASSWD_BINARY=${PASSWD_BINARY:-$TEST_SOURCES/../bin/passwd}
 GRPCNOOP_BINARY=${GRPCNOOP_BINARY:-$TEST_SOURCES/../bin/grpcnoop}
+PIPELOOP_BINARY=${PIPELOOP_BINARY:-$TEST_SOURCES/../bin/pipeloop}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
 # Default timeout for a buildah command.
@@ -384,14 +385,6 @@ function run_buildah() {
     # Remember command args, for possible use in later diagnostic messages
     MOST_RECENT_BUILDAH_COMMAND="buildah $*"
 
-    # If session is rootless and `buildah mount` is invoked, perform unshare,
-    # since normal user cannot mount a filesystem unless they're in a user namespace along with its own mount namespace.
-    if is_rootless; then
-        if [[ "$1" =~ mount ]]; then
-            set "unshare" "$BUILDAH_BINARY" ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
-        fi
-    fi
-
     while [ $retry -gt 0 ]; do
         retry=$(( retry - 1 ))
 
@@ -435,6 +428,41 @@ function run_buildah() {
             fi
         fi
     done
+}
+
+#######################
+#  run_buildah_mount  #  Invoke buildah mount or buildah mount-sshfs, depending on UID
+#######################
+function run_buildah_mount() {
+    case "$1" in
+        [0-9])           expected_rc=$1; shift;;
+        [1-9][0-9])      expected_rc=$1; shift;;
+        [12][0-9][0-9])  expected_rc=$1; shift;;
+        '?')             expected_rc='?'  ; shift;;  # ignore exit code
+    esac
+    if test $(id -u) -eq 0 ; then
+        run_buildah $expected_rc mount "$@"
+    else
+        skip_if_no_sshfs
+        run_buildah $expected_rc mount-sshfs -o no_contain_symlinks "$@"
+    fi
+}
+
+########################
+#  run_buildah_umount  #  Invoke buildah umount or buildah umount-sshfs, depending on UID
+########################
+function run_buildah_umount() {
+    case "$1" in
+        [0-9])           expected_rc=$1; shift;;
+        [1-9][0-9])      expected_rc=$1; shift;;
+        [12][0-9][0-9])  expected_rc=$1; shift;;
+        '?')             expected_rc='?'  ; shift;;  # ignore exit code
+    esac
+    if test $(id -u) -eq 0 ; then
+        run_buildah $expected_rc umount "$@"
+    else
+        run_buildah $expected_rc umount-sshfs "$@"
+    fi
 }
 
 ######################
@@ -687,6 +715,18 @@ function skip_if_no_podman() {
     fi
 }
 
+######################
+#  skip_if_no_sshfs  #  we need 'sshfs' to mount things as an unprivileged user
+######################
+function skip_if_no_sshfs() {
+    if ! [ -c /dev/fuse ]; then
+        skip "/dev/fuse is not available for sshfs"
+    fi
+    run which ${SSHFS_BINARY:-sshfs}
+    if [[ $status -ne 0 ]]; then
+        skip "sshfs is not installed"
+    fi
+}
 
 ##########################
 #  skip_if_in_container  #

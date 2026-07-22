@@ -20,8 +20,6 @@ load helpers
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah mount $cid
-  root=$output
   run_buildah config --workingdir / $cid
   # copy ${TEST_SCRATCH_DIR}/randomfile to a file of the same name in the container's working directory
   run_buildah copy --retry 4 --retry-delay 4s $cid ${TEST_SCRATCH_DIR}/randomfile
@@ -36,8 +34,6 @@ load helpers
   _prefetch alpine
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
-  run_buildah mount $cid
-  root=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile /etc
@@ -45,10 +41,11 @@ load helpers
 
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
-  run_buildah mount $cid
-  root=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid "${TEST_SCRATCH_DIR}/*randomfile" /etc
+
+  run_buildah_mount $cid
+  root=$output
   (cd ${TEST_SCRATCH_DIR}; for i in *randomfile; do cmp $i ${root}/etc/$i; done)
 }
 
@@ -59,18 +56,16 @@ load helpers
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah mount $cid
-  root=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile
-  run_buildah unmount $cid
+  run_buildah_umount $cid
   run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
 
   run_buildah from --quiet $WITH_POLICY_JSON new-image
   newcid=$output
-  run_buildah mount $newcid
+  run_buildah_mount $newcid
   newroot=$output
   test -s $newroot/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
@@ -87,13 +82,13 @@ load helpers
   cid=$output
   run_buildah config --workingdir /container-subdir $cid
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/subdir
-  run_buildah mount $cid
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/subdir /other-subdir
+  run_buildah_mount $cid
   root=$output
   test -s $root/container-subdir/randomfile
   cmp ${TEST_SCRATCH_DIR}/subdir/randomfile $root/container-subdir/randomfile
   test -s $root/container-subdir/other-randomfile
   cmp ${TEST_SCRATCH_DIR}/subdir/other-randomfile $root/container-subdir/other-randomfile
-  run_buildah copy $cid ${TEST_SCRATCH_DIR}/subdir /other-subdir
   test -s $root/other-subdir/randomfile
   cmp ${TEST_SCRATCH_DIR}/subdir/randomfile $root/other-subdir/randomfile
   test -s $root/other-subdir/other-randomfile
@@ -107,17 +102,18 @@ load helpers
   cid=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile
-  run_buildah mount $cid
+  run_buildah_mount $cid
   root=$output
   test -s $root/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $root/randomfile
+  run_buildah_umount $cid
   run_buildah rm $cid
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile /randomsubdir/
-  run_buildah mount $cid
+  run_buildah_mount $cid
   root=$output
   test -s $root/randomsubdir/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $root/randomsubdir/randomfile
@@ -135,7 +131,7 @@ load helpers
   starthttpd ${TEST_SCRATCH_DIR}
   run_buildah copy $cid http://0.0.0.0:${HTTP_SERVER_PORT}/randomfile /urlfile
   stophttpd
-  run_buildah mount $cid
+  run_buildah_mount $cid
   root=$output
   test -s $root/urlfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $root/urlfile
@@ -259,17 +255,13 @@ load helpers
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah mount $cid
-  root=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/link-randomfile
-  run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
-  run_buildah rm $cid
 
   run_buildah from --quiet $WITH_POLICY_JSON new-image
   newcid=$output
-  run_buildah mount $newcid
+  run_buildah_mount $newcid
   newroot=$output
   test -s $newroot/link-randomfile
   test -f $newroot/link-randomfile
@@ -295,16 +287,16 @@ load helpers
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah mount $cid
+  run_buildah_mount $cid
   root=$output
   run_buildah config --workingdir / $cid
-  run_buildah unmount $cid
+  run_buildah_umount $cid
   run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
 
   run_buildah from --quiet $WITH_POLICY_JSON new-image
   newcid=$output
-  run_buildah mount $newcid
+  run_buildah_mount $newcid
   newroot=$output
   test \! -e $newroot/test.socket
 }
@@ -315,17 +307,13 @@ load helpers
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah mount $cid
-  root=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/link-randomfile.tar.gz
-  run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
-  run_buildah rm $cid
 
   run_buildah from --quiet $WITH_POLICY_JSON new-image
   newcid=$output
-  run_buildah mount $newcid
+  run_buildah_mount $newcid
   newroot=$output
   test -s $newroot/link-randomfile.tar.gz
   test -f $newroot/link-randomfile.tar.gz
@@ -368,11 +356,11 @@ stuff/mystuff"
 
   run_buildah copy --contextdir=${mytest} --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
 
-  run_buildah mount $cid
+  run_buildah_mount $cid
   mnt=$output
   run find $mnt -printf "%P\n"
   filelist=$(LC_ALL=C sort <<<"$output")
-  run_buildah umount $cid
+  run_buildah_umount $cid
   expect_output --from="$filelist" "$expect" "container file list"
 }
 
@@ -393,11 +381,11 @@ stuff/mystuff"
 
   run_buildah copy --exclude=**/*.go --exclude=.ignore --exclude=**/notmystuff $cid ${mytest} /stuff
 
-  run_buildah mount $cid
+  run_buildah_mount $cid
   mnt=$output
   run find $mnt -printf "%P\n"
   filelist=$(LC_ALL=C sort <<<"$output")
-  run_buildah umount $cid
+  run_buildah_umount $cid
   expect_output --from="$filelist" "$expect" "container file list"
 }
 
@@ -455,11 +443,11 @@ parents/y/b.txt"
 
     run_buildah copy --parents $cid ${paths} /parents/
 
-    run_buildah mount $cid
+    run_buildah_mount $cid
     mnt=$output
     run find $mnt -printf "%P\n"
     filelist=$(LC_ALL=C sort <<<"$output")
-    run_buildah umount $cid
+    run_buildah_umount $cid
     expect_output --from="$filelist" "$expect" "container file list"
   done < <(parse_table "$tests")
 }
@@ -469,13 +457,11 @@ parents/y/b.txt"
   _prefetch alpine
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
-  run_buildah mount $cid
-  root=$output
   run_buildah copy --quiet $cid ${TEST_SCRATCH_DIR}/randomfile /
   expect_output ""
+  run_buildah_mount $cid
+  root=$output
   cmp ${TEST_SCRATCH_DIR}/randomfile $root/randomfile
-  run_buildah umount $cid
-  run_buildah rm $cid
 }
 
 @test "copy-from-container" {
@@ -491,7 +477,7 @@ parents/y/b.txt"
   expect_output ""
   run_buildah copy --quiet $WITH_POLICY_JSON --from $from $cid  tmp/random /tmp/random2 # relative path
   expect_output ""
-  run_buildah mount $cid
+  run_buildah_mount $cid
   croot=$output
   cmp ${TEST_SCRATCH_DIR}/randomfile ${croot}/tmp/random
   cmp ${TEST_SCRATCH_DIR}/randomfile ${croot}/tmp/random2
@@ -509,24 +495,24 @@ parents/y/b.txt"
   run_buildah copy --quiet $WITH_POLICY_JSON --from $from $cid / /tmp/
   expect_output "" || \
     expect_output --substring "copier: file disappeared while reading"
-  run_buildah mount $cid
+  run_buildah_mount $cid
   croot=$output
   cmp ${TEST_SCRATCH_DIR}/randomfile ${croot}/tmp/tmp/random
 }
 
-@test "add-from-image" {
+@test "copy-from-image" {
   _prefetch busybox
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
-  run_buildah add $WITH_POLICY_JSON --quiet --from ubuntu $cid /etc/passwd /tmp/passwd # should pull the image, absolute path
+  run_buildah copy $WITH_POLICY_JSON --quiet --from ubuntu $cid /etc/passwd /tmp/passwd # should pull the image, absolute path
   expect_output ""
-  run_buildah add --quiet $WITH_POLICY_JSON --from ubuntu $cid  etc/passwd /tmp/passwd2 # relative path
+  run_buildah copy --quiet $WITH_POLICY_JSON --from ubuntu $cid  etc/passwd /tmp/passwd2 # relative path
   expect_output ""
   run_buildah from --quiet $WITH_POLICY_JSON ubuntu
   ubuntu=$output
-  run_buildah mount $cid
+  run_buildah_mount $cid
   croot=$output
-  run_buildah mount $ubuntu
+  run_buildah_mount $ubuntu
   ubuntu=$output
   cmp $ubuntu/etc/passwd ${croot}/tmp/passwd
   cmp $ubuntu/etc/passwd ${croot}/tmp/passwd2
@@ -688,15 +674,10 @@ parents/y/b.txt"
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah mount $cid
-  root=$output
-  
   run_buildah config --workingdir=/ $cid
   run_buildah copy --link $cid ${TEST_SCRATCH_DIR}/randomfile
-  
-  run_buildah copy --link $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /subdir/  
-  run_buildah unmount $cid
-  run_buildah commit $WITH_POLICY_JSON $cid copy-link-image
+  run_buildah copy --link $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /subdir/
+  run_buildah commit --debug $WITH_POLICY_JSON $cid copy-link-image
 
   run_buildah inspect --type=image copy-link-image
   layers=$(echo "$output" | jq -r '.OCIv1.rootfs.diff_ids | length')
@@ -704,9 +685,9 @@ parents/y/b.txt"
 
   run_buildah from $WITH_POLICY_JSON copy-link-image
   newcid=$output
-  run_buildah mount $newcid
+  run_buildah_mount $newcid
   newroot=$output
-  
+
   test -s $newroot/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
   test -s $newroot/subdir/randomfile
@@ -722,17 +703,17 @@ parents/y/b.txt"
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  
+
   run_buildah config --workingdir=/ $cid
   run_buildah copy --link $cid ${TEST_SCRATCH_DIR}/sourcedir /destdir
-  
+
   run_buildah commit $WITH_POLICY_JSON $cid copy-link-dir-image
 
   run_buildah from $WITH_POLICY_JSON copy-link-dir-image
   newcid=$output
-  run_buildah mount $newcid
+  run_buildah_mount $newcid
   newroot=$output
-  
+
   test -d $newroot/destdir
   test -s $newroot/destdir/file1
   cmp ${TEST_SCRATCH_DIR}/sourcedir/file1 $newroot/destdir/file1
@@ -742,15 +723,15 @@ parents/y/b.txt"
 
 @test "copy-link-with-chown" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
-  
+
   _prefetch busybox
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
-  
+
   run_buildah copy --link --chown bin:bin $cid ${TEST_SCRATCH_DIR}/randomfile /tmp/random
-  
+
   run_buildah commit $WITH_POLICY_JSON $cid copy-link-chown-image
-  
+
   run_buildah from $WITH_POLICY_JSON copy-link-chown-image
   newcid=$output
   run_buildah run $newcid ls -l /tmp/random
@@ -759,15 +740,15 @@ parents/y/b.txt"
 
 @test "copy-link-with-chmod" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
-  
+
   _prefetch busybox
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
-  
+
   run_buildah copy --link --chmod 777 $cid ${TEST_SCRATCH_DIR}/randomfile /tmp/random
-  
+
   run_buildah commit $WITH_POLICY_JSON $cid copy-link-chmod-image
-  
+
   run_buildah from $WITH_POLICY_JSON copy-link-chmod-image
   newcid=$output
   run_buildah run $newcid ls -l /tmp/random
@@ -784,13 +765,13 @@ parents/y/b.txt"
 
   # Default (allow-wildcard=true): glob expands, copies both files
   run_buildah copy $cid "${TEST_SCRATCH_DIR}/file-*" /dest/
-  run_buildah mount $cid
+  run_buildah_mount $cid
   root=$output
   test -f $root/dest/file-a
   test -f $root/dest/file-b
   cmp ${TEST_SCRATCH_DIR}/file-a $root/dest/file-a
   cmp ${TEST_SCRATCH_DIR}/file-b $root/dest/file-b
-  run_buildah umount $cid
+  run_buildah_umount $cid
 
   # allow-wildcard=false: glob patterns are rejected
   run_buildah 125 copy --allow-wildcard=false $cid "${TEST_SCRATCH_DIR}/file-*" /dest2/
@@ -810,17 +791,17 @@ parents/y/b.txt"
 
   # Explicit true: non-matching glob should succeed
   run_buildah copy --allow-empty-wildcard=true $cid "${TEST_SCRATCH_DIR}/nonexistent-*" /dest2/
-  run_buildah mount $cid
+  run_buildah_mount $cid
   root=$output
   test ! -d $root/dest2
-  run_buildah umount $cid
+  run_buildah_umount $cid
 
   # Existing files still copy normally
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/file-a /dest3/
-  run_buildah mount $cid
+  run_buildah_mount $cid
   root=$output
   test -f $root/dest3/file-a
-  run_buildah umount $cid
+  run_buildah_umount $cid
 
   # Literal non-existent file should still error even with allow-empty-wildcard=true
   run_buildah 125 copy --allow-empty-wildcard=true $cid ${TEST_SCRATCH_DIR}/no-such-file /dest4/

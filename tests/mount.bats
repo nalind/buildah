@@ -17,7 +17,7 @@ load helpers
   _prefetch alpine
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
-  run_buildah mount "$cid"
+  run_buildah_mount "$cid"
 }
 
 @test "mount bad container" {
@@ -32,7 +32,7 @@ load helpers
   cid2=$output
   run_buildah from --quiet --pull-never $WITH_POLICY_JSON alpine
   cid3=$output
-  run_buildah mount "$cid1" "$cid2" "$cid3"
+  run_buildah_mount "$cid1" "$cid2" "$cid3"
 }
 
 @test "mount multi images one bad" {
@@ -50,14 +50,14 @@ load helpers
   _prefetch alpine
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah mount "$cid1"
+  run_buildah_mount "$cid1"
   run_buildah from --quiet --pull-never $WITH_POLICY_JSON alpine
   cid2=$output
-  run_buildah mount "$cid2"
+  run_buildah_mount "$cid2"
   run_buildah from --quiet --pull-never $WITH_POLICY_JSON alpine
   cid3=$output
-  run_buildah mount "$cid3"
-  run_buildah mount
+  run_buildah_mount "$cid3"
+  run_buildah_mount
   expect_line_count 3
   expect_output --from="${lines[0]}" --substring "/tmp" "mount line 1 of 3"
   expect_output --from="${lines[1]}" --substring "/tmp" "mount line 2 of 3"

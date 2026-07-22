@@ -38,22 +38,22 @@ load helpers
 @test "mount" {
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah mount $cid
+  run_buildah_mount $cid
   root=$output
-  run_buildah unmount $cid
-  run_buildah mount $cid
+  run_buildah_umount $cid
+  run_buildah_mount $cid
   root=$output
   touch $root/foobar
-  run_buildah unmount $cid
+  run_buildah_umount $cid
   run_buildah rm $cid
 }
 
 @test "by-name" {
   run_buildah from $WITH_POLICY_JSON --name scratch-working-image-for-test scratch
   cid=$output
-  run_buildah mount scratch-working-image-for-test
+  run_buildah_mount scratch-working-image-for-test
   root=$output
-  run_buildah unmount scratch-working-image-for-test
+  run_buildah_umount scratch-working-image-for-test
   run_buildah rm scratch-working-image-for-test
 }
 
@@ -63,10 +63,10 @@ load helpers
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah mount $cid
+  run_buildah_mount $cid
   root=$output
   cp ${TEST_SCRATCH_DIR}/randomfile $root/randomfile
-  run_buildah unmount $cid
+  run_buildah_umount $cid
   run_buildah commit --iidfile ${TEST_SCRATCH_DIR}/output.iid $WITH_POLICY_JSON $cid containers-storage:new-image
   iid=$(< ${TEST_SCRATCH_DIR}/output.iid)
   assert "$iid" =~ "sha256:[0-9a-f]{64}"
@@ -75,7 +75,7 @@ load helpers
   run_buildah rm $cid
   run_buildah from --quiet $WITH_POLICY_JSON new-image
   newcid=$output
-  run_buildah mount $newcid
+  run_buildah_mount $newcid
   newroot=$output
   test -s $newroot/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
@@ -86,43 +86,46 @@ load helpers
   run_buildah commit $WITH_POLICY_JSON $newcid containers-storage:another-new-image
   run_buildah commit $WITH_POLICY_JSON $newcid yet-another-new-image
   run_buildah commit $WITH_POLICY_JSON $newcid containers-storage:gratuitous-new-image
-  run_buildah unmount $newcid
+  run_buildah_umount $newcid
   run_buildah rm $newcid
 
   run_buildah from --quiet $WITH_POLICY_JSON other-new-image
   othernewcid=$output
-  run_buildah mount $othernewcid
+  run_buildah_mount $othernewcid
   othernewroot=$output
   test -s $othernewroot/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $othernewroot/randomfile
   test -s $othernewroot/other-randomfile
   cmp ${TEST_SCRATCH_DIR}/other-randomfile $othernewroot/other-randomfile
+  run_buildah_umount $othernewcid
   run_buildah rm $othernewcid
 
   run_buildah from --quiet $WITH_POLICY_JSON another-new-image
   anothernewcid=$output
-  run_buildah mount $anothernewcid
+  run_buildah_mount $anothernewcid
   anothernewroot=$output
   test -s $anothernewroot/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $anothernewroot/randomfile
   test -s $anothernewroot/other-randomfile
   cmp ${TEST_SCRATCH_DIR}/other-randomfile $anothernewroot/other-randomfile
+  run_buildah_umount $anothernewcid
   run_buildah rm $anothernewcid
 
   run_buildah from --quiet $WITH_POLICY_JSON yet-another-new-image
   yetanothernewcid=$output
-  run_buildah mount $yetanothernewcid
+  run_buildah_mount $yetanothernewcid
   yetanothernewroot=$output
   test -s $yetanothernewroot/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $yetanothernewroot/randomfile
   test -s $yetanothernewroot/other-randomfile
   cmp ${TEST_SCRATCH_DIR}/other-randomfile $yetanothernewroot/other-randomfile
+  run_buildah_umount $yetanothernewcid
   run_buildah delete $yetanothernewcid
 
   run_buildah from --quiet $WITH_POLICY_JSON new-image
   newcid=$output
   run_buildah commit --rm $WITH_POLICY_JSON $newcid containers-storage:remove-container-image
-  run_buildah 125 mount $newcid
+  run_buildah_mount 125 $newcid
 
   run_buildah rmi remove-container-image
   run_buildah rmi containers-storage:other-new-image

@@ -34,10 +34,10 @@ load helpers
   run_buildah from scratch
   CONT=$output
   unset XDG_RUNTIME_DIR
-  run_buildah mount $CONT
+  run_buildah_mount $CONT
   MNT=$output
   run cp ${TEST_SCRATCH_DIR}/file $MNT/file
-  run_buildah umount $CONT
+  run_buildah_umount $CONT
   run_buildah commit $CONT foo
   run_buildah images foo
   expect_output --substring "10.5 MB"
@@ -386,7 +386,7 @@ load helpers
     # first one should have the first file and not the second, and the shell should be there
     run_buildah from --quiet --pull=false $WITH_POLICY_JSON with-random-1
     cid=$output
-    run_buildah mount $cid
+    run_buildah_mount $cid
     mountpoint=$output
     test -s $mountpoint/bin/sh || test -L $mountpoint/bin/sh
     cmp ${TEST_SCRATCH_DIR}/randomfile1 $mountpoint/randomfile1
@@ -401,7 +401,7 @@ load helpers
     # second one should have the second file and not the first, and the shell should be there
     run_buildah from --quiet --pull=false $WITH_POLICY_JSON with-random-2
     cid=$output
-    run_buildah mount $cid
+    run_buildah_mount $cid
     mountpoint=$output
     test -s $mountpoint/bin/sh || test -L $mountpoint/bin/sh
     cmp ${TEST_SCRATCH_DIR}/randomfile2 $mountpoint/in-a-subdir/randomfile2
@@ -416,7 +416,7 @@ load helpers
     # third one should have both files, and the shell should be there
     run_buildah from --quiet --pull=false $WITH_POLICY_JSON with-random-both
     cid=$output
-    run_buildah mount $cid
+    run_buildah_mount $cid
     mountpoint=$output
     test -s $mountpoint/bin/sh || test -L $mountpoint/bin/sh
     cmp ${TEST_SCRATCH_DIR}/randomfile1 $mountpoint/randomfile1

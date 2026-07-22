@@ -2,7 +2,7 @@
 
 load helpers
 
-@test "run" {
+@test "run-basic" {
 	skip_if_no_runtime
 
 	_prefetch alpine
@@ -12,19 +12,20 @@ load helpers
 	${OCI} --version
 	createrandom ${TEST_SCRATCH_DIR}/randomfile
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
-	cid=$output
-	run_buildah mount $cid
-	root=$output
+	local cid=$output
 	run_buildah config --workingdir /tmp $cid
 	run_buildah run $cid pwd
 	expect_output "/tmp"
 	run_buildah config --workingdir /root $cid
-	run_buildah run        $cid pwd
+	run_buildah run $cid pwd
 	expect_output "/root"
-	cp ${TEST_SCRATCH_DIR}/randomfile $root/tmp/
-	run_buildah run        $cid cp /tmp/randomfile /tmp/other-randomfile
+	run_buildah add $cid ${TEST_SCRATCH_DIR}/randomfile $root/tmp/
+	run_buildah run $cid cp /tmp/randomfile /tmp/other-randomfile
+	run_buildah_mount $cid
+	local root=$output
 	test -s $root/tmp/other-randomfile
 	cmp ${TEST_SCRATCH_DIR}/randomfile $root/tmp/other-randomfile
+	run_buildah_umount $cid
 
 	seq 100000 | buildah run $cid -- sh -c 'while read i; do echo $i; done'
 }
@@ -194,7 +195,7 @@ function configure_and_check_user() {
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	run_buildah mount $cid
+	run_buildah_mount $cid
 	root=$output
 
 	testuser=jimbo
@@ -206,6 +207,7 @@ function configure_and_check_user() {
 	testgroupid=$(random_unused_id $root/etc/group)
 	echo "$testuser:x:$testuid:$testgid:Jimbo Jenkins:/home/$testuser:/bin/sh" >> $root/etc/passwd
 	echo "$testgroup:x:$testgroupid:" >> $root/etc/group
+	run_buildah_umount $cid
 
         configure_and_check_user ""                             0             0
         configure_and_check_user "${testuser}"                  $testuid      $testgid
@@ -223,7 +225,8 @@ function configure_and_check_user() {
         run_buildah 125 run -- $cid id -g
         expect_output --substring "unknown user" "id -g (bogus user)"
 
-	ln -vsf /etc/passwd $root/etc/passwd
+	run_buildah config -u root:root $cid
+	run_buildah run -- $cid ln -vsf /etc/passwd /etc/passwd
 	run_buildah config -u ${testuser}:${testgroup} $cid
 	run_buildah 125 run -- $cid id -u
 	echo "$output"
@@ -594,20 +597,25 @@ function configure_and_check_user() {
 @test "run-builtin-volume-omitted" {
 	# This image is known to include a volume, but not include the mountpoint
 	# in the image.
-	_prefetch quay.io/libpod/registry:volume_omitted
-	run_buildah from --quiet --cidfile ${TEST_SCRATCH_DIR}/cid --pull=ifmissing $WITH_POLICY_JSON quay.io/libpod/registry:volume_omitted
+	image=quay.io/libpod/registry:volume_omitted
+	_prefetch $image
+	run_buildah from --cidfile ${TEST_SCRATCH_DIR}/cid --pull=ifmissing $WITH_POLICY_JSON $image
 	cid="$(< ${TEST_SCRATCH_DIR}/cid)"
-	run_buildah mount $cid
+
+	# Initially, the volume's mountpoint should not be there.
+	run_buildah_mount $cid
 	mnt=$output
-	# By default, the mountpoint should not be there.
 	run test -d "$mnt"/var/lib/registry
 	echo "$output"
 	[ "$status" -ne 0 ]
-	# We'll create the mountpoint for "run".
-	run_buildah run $cid ls -1 /var/lib
-        expect_output --substring "registry"
+	run_buildah_umount $cid
 
-	# Double-check that the mountpoint is there.
+	# This will create the volume's mountpoint for a "run".
+	run_buildah run $cid ls -1 /var/lib
+	expect_output --substring "registry"
+
+	# Double-check that the mountpoint is there now.
+	run_buildah_mount $cid
 	test -d "$mnt"/var/lib/registry
 }
 
@@ -824,7 +832,7 @@ $output"
 	assert "$output" !~ "^nameserver 127." "Container contains local nameserver"
 	assert "$nameservers" "Container nameservers match correct host nameservers"
 	if ! is_rootless; then
-		run_buildah mount $cid
+		run_buildah_mount $cid
 		assert "$output" != ""
 		if test -e "$output/etc/resolv.conf" ; then
 			assert "$(< $output/etc/resolv.conf)" = "" "resolv.conf is empty"
@@ -841,7 +849,7 @@ $output"
 	run_buildah run --isolation=chroot --network=host $cid grep nameserver /etc/resolv.conf
 	assert "$nameservers" "Container nameservers match the host nameservers"
 	if ! is_rootless; then
-		run_buildah mount $cid
+		run_buildah_mount $cid
 		assert "$output" != ""
 		if test -e "$output/etc/resolv.conf" ; then
 			assert "$(< $output/etc/resolv.conf)" = "" "resolv.conf is empty"
