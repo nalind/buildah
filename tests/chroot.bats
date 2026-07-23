@@ -218,3 +218,157 @@ EOF
   chmod +rx ${TEST_SCRATCH_DIR}/script1 ${TEST_SCRATCH_DIR}/script2
   env -i unshare -inCfpm bash ${TEST_SCRATCH_DIR}/script1
 }
+
+@test "chroot RUN succeeds when setgroups is denied" {
+  skip_if_no_unshare
+  if test `uname` != Linux ; then
+    skip "not meaningful except on Linux"
+  fi
+
+  baseimage=registry.access.redhat.com/ubi10:latest
+  _prefetch $baseimage
+  baseimagef=$(tr -c a-zA-Z0-9.- - <<< "$baseimage")
+
+  storagedir=${TEST_SCRATCH_DIR}/storage
+  mkdir $storagedir
+  rootdir=${storagedir}/rootdir
+  mkdir $rootdir
+  runrootdir=${storagedir}/runrootdir
+  mkdir $runrootdir
+  # ignore_chown_errors lets the base image extract in the single-ID namespace,
+  # where high gids in the rootfs can't be represented; unrelated to the bug.
+  storageopts="--storage-driver vfs --storage-opt vfs.ignore_chown_errors=true --root $rootdir --runroot $runrootdir"
+
+  context=${TEST_SCRATCH_DIR}/context ; mkdir $context
+  echo "FROM $baseimage" > $context/Dockerfile
+  echo "RUN echo regression-marker-ran" >> $context/Dockerfile
+
+  cp ${COPY_BINARY} ${TEST_SCRATCH_DIR}/copy
+  cp ${BUILDAH_BINARY} ${TEST_SCRATCH_DIR}/buildah
+
+  echo set -e > ${TEST_SCRATCH_DIR}/script.sh
+  echo "mount -t tmpfs tmpfs /run/lock" >> ${TEST_SCRATCH_DIR}/script.sh
+  # confirm we really are in a setgroups-denied namespace -- the bug's precondition
+  echo "test \"\$(cat /proc/self/setgroups)\" = deny" >> ${TEST_SCRATCH_DIR}/script.sh
+  # seed the store from the prefetched cache so the build needs no network
+  echo "${TEST_SCRATCH_DIR}/copy ${storageopts} dir:\$_BUILDAH_IMAGE_CACHEDIR/$baseimagef containers-storage:$baseimage" >> ${TEST_SCRATCH_DIR}/script.sh
+  # the actual regression: this build used to fail at the RUN step with EPERM
+  echo "${TEST_SCRATCH_DIR}/buildah ${BUILDAH_REGISTRY_OPTS} ${storageopts} build --isolation chroot --pull=never $context" >> ${TEST_SCRATCH_DIR}/script.sh
+
+  run unshare --user --map-root-user --mount bash ${TEST_SCRATCH_DIR}/script.sh
+  echo "$output"
+  assert "$status" -eq 0
+  expect_output --substring "regression-marker-ran"
+}
+
+@test "chroot run denies group access to a member when group bits are restrictive" {
+  skip_if_no_unshare
+  if test `uname` != Linux ; then
+    skip "not meaningful except on Linux"
+  fi
+  if ! test -e /etc/subgid ; then
+    skip "no /etc/subgid allocation to set up the probe"
+  fi
+  if ! test -e /etc/subuid ; then
+    skip "no /etc/subuid allocation to set up the probe"
+  fi
+
+  baseimage=registry.access.redhat.com/ubi10:latest
+  _prefetch $baseimage
+  baseimagef=$(tr -c a-zA-Z0-9.- - <<< "$baseimage")
+
+  storagedir=${TEST_SCRATCH_DIR}/storage
+  mkdir $storagedir
+  rootdir=${storagedir}/rootdir
+  mkdir $rootdir
+  runrootdir=${storagedir}/runrootdir
+  mkdir $runrootdir
+  storageopts="--storage-driver vfs --storage-opt vfs.ignore_chown_errors=true --root $rootdir --runroot $runrootdir"
+
+  probe=${TEST_SCRATCH_DIR}/probe
+  mkdir $probe
+
+  subgidline=$(grep "^$(id -un):" /etc/subgid | head -1)
+  substart=$(echo "$subgidline" | cut -d: -f2)
+  subsize=$(echo "$subgidline" | cut -d: -f3)
+  if test -z "$substart" || test -z "$subsize" ; then
+    skip "no subgid range for $(id -un) to set up the probe"
+  fi
+
+  subuidline=$(grep "^$(id -un):" /etc/subuid | head -1)
+  subuidstart=$(echo "$subuidline" | cut -d: -f2)
+  subuidsize=$(echo "$subuidline" | cut -d: -f3)
+  if test -z "$subuidstart" || test -z "$subuidsize" ; then
+    skip "no subuid range for $(id -un) to set up the probe"
+  fi
+
+  # The namespaces below map inner gid 0 to our real egid, and inner gids
+  # 1..${subsize} to our subordinate gid range.  The innermost namespace, where
+  # the build runs, maps only our real uid/gid to 0, so:
+  #   okgid   -- inner 0 -> our real egid, which is also the RUN process's
+  #              primary gid, so the RUN process is a member of it.
+  #   notmine -- an inner gid from the subordinate range, which the build's
+  #              namespace does not map and the RUN process does not hold.
+  okgid=0
+  notmine=4242
+  if test "$notmine" -lt 1 || test "$notmine" -gt "$subsize" ; then
+    skip "gid $notmine is outside the mappable subordinate range 1..$subsize"
+  fi
+
+  # member_denied: group okgid, mode 0004 (owner ---, group ---, other r).  The
+  # RUN process is a member of the group, so the group bits must deny it even
+  # though "other" would allow.  This checks in_group_p()'s fsgid path.
+  echo secret_member > $probe/member_denied
+  # nonmember_allowed: group notmine, mode 0004.  The RUN process is not a
+  # member, so it falls through to "other" (r) and is allowed.  Control for the
+  # above: if both were denied, member_denied would prove nothing.
+  echo ok_nonmember > $probe/nonmember_allowed
+
+  # Set ownership and bits from a namespace that maps our subordinate ranges, so
+  # no sudo is needed.  Files are chown'ed to inner uid 1 (our subordinate
+  # range) so the RUN process is not their owner and cannot use CAP_DAC_OVERRIDE
+  # on them -- capable_wrt_inode_uidgid() requires the inode's uid to be mapped,
+  # and inner uid 1 is not mapped in the build's namespace.
+  unshare --user --mount \
+    --map-users=$(id -u),0,1 --map-users=${subuidstart},1,1 \
+    --map-groups=$(id -g),0,1 --map-groups=${substart},1,${subsize} \
+    sh -c "
+    set -e
+    chown 1:$okgid   $probe/member_denied     && chmod 0004 $probe/member_denied
+    chown 1:$notmine $probe/nonmember_allowed && chmod 0004 $probe/nonmember_allowed
+  " || skip "user namespace could not map the uid/gids for the probe"
+
+  cp ${COPY_BINARY} ${TEST_SCRATCH_DIR}/copy
+  cp ${BUILDAH_BINARY} ${TEST_SCRATCH_DIR}/buildah
+
+  echo set -e > ${TEST_SCRATCH_DIR}/script.sh
+  echo "mount -t tmpfs tmpfs /run/lock" >> ${TEST_SCRATCH_DIR}/script.sh
+  # setgroups-denied single-ID namespace -- same environment as #6947
+  echo "test \"\$(cat /proc/self/setgroups)\" = deny" >> ${TEST_SCRATCH_DIR}/script.sh
+  echo "${TEST_SCRATCH_DIR}/copy ${storageopts} dir:\$_BUILDAH_IMAGE_CACHEDIR/$baseimagef containers-storage:$baseimage" >> ${TEST_SCRATCH_DIR}/script.sh
+  echo "ctr=\$(${TEST_SCRATCH_DIR}/buildah ${BUILDAH_REGISTRY_OPTS} ${storageopts} from --pull=never -q $baseimage)" >> ${TEST_SCRATCH_DIR}/script.sh
+  echo "${TEST_SCRATCH_DIR}/buildah ${BUILDAH_REGISTRY_OPTS} ${storageopts} run --isolation chroot -v $probe:/probe:ro,z \"\$ctr\" -- sh -c 'echo setgroups:\$(cat /proc/self/setgroups); stat -c \"member_denied=%u:%g:%a\" /probe/member_denied; stat -c \"nonmember_allowed=%u:%g:%a\" /probe/nonmember_allowed; grep ^Gid: /proc/self/status; cat /probe/nonmember_allowed && ! cat /probe/member_denied'" >> ${TEST_SCRATCH_DIR}/script.sh
+
+  # Two namespaces, mirroring the reported environment: the outer one is mapped
+  # via newuidmap/newgidmap, which leaves setgroups() permitted, so we can drop
+  # our supplemental groups the way the container runtime would have; the inner
+  # one is the single-ID namespace, where the kernel requires setgroups to be
+  # denied before it will accept the mappings.
+  run unshare --user --mount \
+    --map-users=$(id -u),0,1 --map-users=${subuidstart},1,${subuidsize} \
+    --map-groups=$(id -g),0,1 --map-groups=${substart},1,${subsize} \
+    sh -c "setpriv --groups 0 -- unshare --user --map-root-user --mount bash ${TEST_SCRATCH_DIR}/script.sh"
+  echo "$output"
+  assert "$status" -eq 0
+  # the probes have to run inside buildah run, in the denied namespace
+  expect_output --substring "setgroups:deny"
+  # both files must be owned by an unmapped uid (65534), so neither the owner
+  # bits nor CAP_DAC_OVERRIDE apply, and both must still be mode 0004
+  expect_output --substring "member_denied=65534:${okgid}:4"
+  expect_output --substring "nonmember_allowed=65534:65534:4"
+  # okgid must be the RUN process's primary gid, otherwise member_denied is not
+  # exercising group-bit enforcement against a member
+  expect_output --substring "Gid:	${okgid}"
+  expect_output --substring "ok_nonmember"
+  assert "$output" !~ "secret_member"
+}
