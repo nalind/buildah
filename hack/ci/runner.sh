@@ -83,7 +83,7 @@ function run_conformance() {
 }
 
 function run_integration() {
-    $SUDO make test-integration
+    $SUDO env OMP_THREAD_LIMIT=4 make test-integration
 }
 
 function run_in_podman() {
