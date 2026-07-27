@@ -612,6 +612,54 @@ func Remove(root string, item string, options RemoveOptions) error {
 	return nil
 }
 
+// SymlinkOptions controls parts of Symlink()'s behavior.
+type SymlinkOptions struct {
+	UIDMap, GIDMap []idtools.IDMap // map from containerIDs to hostIDs when creating the symlink
+	ChownNew       *idtools.IDPair // set ownership of the newly-created symlink
+	ModTimeNew     *time.Time      // set mtime and atime of the newly-created symlink
+}
+
+// Symlink creates a symlink at the specified path under root
+// pointing to the specified target. It builds a tar archive
+// containing a single entry and passes it to Put().
+func Symlink(root string, target string, link string, options SymlinkOptions) error {
+	uid, gid := 0, 0
+	if options.ChownNew != nil {
+		uid, gid = options.ChownNew.UID, options.ChownNew.GID
+	}
+
+	modTime := time.Now()
+	if options.ModTimeNew != nil {
+		modTime = *options.ModTimeNew
+	}
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	hdr := &tar.Header{
+		Name:     cleanerReldirectory(link),
+		Linkname: target,
+		Uid:      uid,
+		Gid:      gid,
+		ModTime:  modTime,
+		Typeflag: tar.TypeSymlink,
+	}
+
+	if err := tw.WriteHeader(hdr); err != nil {
+		return fmt.Errorf("copier: symlink: error writing tar header: %w", err)
+	}
+
+	if err := tw.Close(); err != nil {
+		return fmt.Errorf("copier: symlink: error closing tar writer: %w", err)
+	}
+
+	putOptions := PutOptions{
+		UIDMap: options.UIDMap,
+		GIDMap: options.GIDMap,
+	}
+
+	return Put(root, root, putOptions, &buf)
+}
+
 // cleanerReldirectory resolves relative path candidate lexically, attempting
 // to ensure that when joined as a subdirectory of another directory, it does
 // not reference anything outside of that other directory.
