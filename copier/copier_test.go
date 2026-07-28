@@ -3256,3 +3256,97 @@ func testPutCreateDestPath(t *testing.T) {
 		})
 	}
 }
+
+func TestSymlinkNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testSymlink(t)
+	canChroot = couldChroot
+}
+
+func testSymlink(t *testing.T) {
+	currentOwner := &idtools.IDPair{UID: os.Getuid(), GID: os.Getgid()}
+	symlinkOpts := func(modTime *time.Time) SymlinkOptions {
+		return SymlinkOptions{
+			ModTimeNew: modTime,
+			ChownNew:   currentOwner,
+		}
+	}
+
+	t.Run("basic", func(t *testing.T) {
+		root := t.TempDir()
+		err := Symlink(root, "target", "newlink", symlinkOpts(nil))
+		require.NoError(t, err)
+
+		info, err := os.Lstat(filepath.Join(root, "newlink"))
+		require.NoError(t, err)
+		assert.NotEqual(t, info.Mode()&os.ModeSymlink, 0, "should be a symlink")
+
+		got, err := os.Readlink(filepath.Join(root, "newlink"))
+		require.NoError(t, err)
+		assert.Equal(t, "target", got)
+	})
+
+	t.Run("with-timestamp", func(t *testing.T) {
+		root := t.TempDir()
+		err := Symlink(root, "target", "dated", symlinkOpts(&testDate))
+		require.NoError(t, err)
+
+		info, err := os.Lstat(filepath.Join(root, "dated"))
+		require.NoError(t, err)
+		assert.NotEqual(t, info.Mode()&os.ModeSymlink, 0)
+
+		if !testIgnoreSymlinkDates {
+			assert.Equal(t, testDate.Unix(), info.ModTime().Unix())
+		}
+	})
+
+	t.Run("nested-path", func(t *testing.T) {
+		archive := makeArchive([]tar.Header{
+			{Name: "subdir-a", Typeflag: tar.TypeDir, Mode: 0o755, ModTime: testDate},
+			{Name: "subdir-a/subdir-b", Typeflag: tar.TypeDir, Mode: 0o755, ModTime: testDate},
+		}, nil)
+		root, err := makeContextFromArchive(t, archive, "")
+		require.NoError(t, err)
+
+		err = Symlink(root, "target", "subdir-a/subdir-b/deeplink", symlinkOpts(nil))
+		require.NoError(t, err)
+
+		got, err := os.Readlink(filepath.Join(root, "subdir-a", "subdir-b", "deeplink"))
+		require.NoError(t, err)
+		assert.Equal(t, "target", got)
+	})
+
+	t.Run("path-traversal", func(t *testing.T) {
+		root := t.TempDir()
+		err := Symlink(root, "target", "../../escaped", symlinkOpts(nil))
+		require.NoError(t, err)
+
+		got, err := os.Readlink(filepath.Join(root, "escaped"))
+		require.NoError(t, err)
+		assert.Equal(t, "target", got)
+	})
+
+	t.Run("absolute-path", func(t *testing.T) {
+		root := t.TempDir()
+		err := Symlink(root, "target", "/absolutelink", symlinkOpts(nil))
+		require.NoError(t, err)
+
+		got, err := os.Readlink(filepath.Join(root, "absolutelink"))
+		require.NoError(t, err)
+		assert.Equal(t, "target", got)
+	})
+
+	t.Run("overwrite", func(t *testing.T) {
+		root := t.TempDir()
+		err := Symlink(root, "original-target", "link", symlinkOpts(nil))
+		require.NoError(t, err)
+
+		err = Symlink(root, "new-target", "link", symlinkOpts(nil))
+		require.NoError(t, err)
+
+		got, err := os.Readlink(filepath.Join(root, "link"))
+		require.NoError(t, err)
+		assert.Equal(t, "new-target", got)
+	})
+}

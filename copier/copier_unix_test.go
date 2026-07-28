@@ -189,3 +189,13 @@ func TestPutCreateDestPathChroot(t *testing.T) {
 	defer func() { canChroot = couldChroot }()
 	testPutCreateDestPath(t)
 }
+
+func TestSymlinkChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	testSymlink(t)
+	canChroot = couldChroot
+}
