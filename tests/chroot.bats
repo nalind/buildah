@@ -351,7 +351,7 @@ EOF
   echo "test \"\$(cat /proc/self/setgroups)\" = deny" >> ${TEST_SCRATCH_DIR}/script.sh
   echo "${TEST_SCRATCH_DIR}/copy ${storageopts} dir:\$_BUILDAH_IMAGE_CACHEDIR/$baseimagef containers-storage:$baseimage" >> ${TEST_SCRATCH_DIR}/script.sh
   echo "ctr=\$(${TEST_SCRATCH_DIR}/buildah ${BUILDAH_REGISTRY_OPTS} ${storageopts} from --pull=never -q $baseimage)" >> ${TEST_SCRATCH_DIR}/script.sh
-  echo "${TEST_SCRATCH_DIR}/buildah ${BUILDAH_REGISTRY_OPTS} ${storageopts} run --isolation chroot -v $probe:/probe:ro,z \"\$ctr\" -- sh -c 'echo setgroups:\$(cat /proc/self/setgroups); stat -c \"member_denied=%u:%g:%a\" /probe/member_denied; stat -c \"nonmember_allowed=%u:%g:%a\" /probe/nonmember_allowed; grep ^Gid: /proc/self/status; cat /probe/nonmember_allowed && ! cat /probe/member_denied'" >> ${TEST_SCRATCH_DIR}/script.sh
+  echo "${TEST_SCRATCH_DIR}/buildah ${BUILDAH_REGISTRY_OPTS} ${storageopts} run --isolation chroot -v $probe:/probe:z \"\$ctr\" -- sh -c 'echo setgroups:\$(cat /proc/self/setgroups); stat -c \"member_denied=%u:%g:%a\" /probe/member_denied; stat -c \"nonmember_allowed=%u:%g:%a\" /probe/nonmember_allowed; grep ^Gid: /proc/self/status; cat /probe/nonmember_allowed && ! cat /probe/member_denied'" >> ${TEST_SCRATCH_DIR}/script.sh
 
   # Two namespaces, mirroring the reported environment: the outer one is mapped
   # via newuidmap/newgidmap, which leaves setgroups() permitted, so we can drop
