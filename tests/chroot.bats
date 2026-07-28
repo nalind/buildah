@@ -178,6 +178,10 @@ load helpers
   # https://github.com/podman-container-tools/buildah/issues/6967
   # chown -R is not safe against concurent removal, it will exit 1 when
   # it happens but still walks all files so we can ignore the error here.
+  # Bug: https://bugs.gnu.org/81444
+  # Only once the fix landed in our test distro images coreutils version this workaround can be removed.
+  # Because this is a flake as simple remove and test is not enough to confirm. Please actually verify
+  # it using the reproducer on the issue to ensure the flake is not added back.
   chown -R 1:1 ${TEST_SCRATCH_DIR}/chroot/merged/run ${TEST_SCRATCH_DIR}/chroot/merged/var/lib/containers || true
   mount --bind ${TEST_SCRATCH_DIR} ${TEST_SCRATCH_DIR}/chroot/merged/${TEST_SCRATCH_DIR}
   mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged/usr/local/bin
