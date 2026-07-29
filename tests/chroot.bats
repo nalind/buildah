@@ -176,7 +176,7 @@ load helpers
   mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged/var/lib/containers/storage
   chmod 755 ${TEST_SCRATCH_DIR}/chroot/merged/var/lib/containers/storage
   # https://github.com/podman-container-tools/buildah/issues/6967
-  # chown -R is not safe against concurent removal, it will exit 1 when
+  # chown -R is not safe against concurrent removal, it will exit 1 when
   # it happens but still walks all files so we can ignore the error here.
   # Bug: https://bugs.gnu.org/81444
   # Only once the fix landed in our test distro images coreutils version this workaround can be removed.
