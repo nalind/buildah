@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -286,27 +287,17 @@ func TestParsePlatform(t *testing.T) {
 
 func TestParsePullPolicy(t *testing.T) {
 	t.Parallel()
-	testCases := map[string]bool{
-		"missing":    true,
-		"ifmissing":  true,
-		"notpresent": true,
-		"always":     true,
-		"true":       true,
-		"ifnewer":    true,
-		"newer":      true,
-		"false":      true,
-		"never":      true,
-		"try":        false,
-		"truth":      false,
+	for name, want := range define.PolicyMap {
+		t.Run(name, func(t *testing.T) {
+			got, err := pullPolicyWithFlags(name, false, false)
+			require.NoErrorf(t, err, "expected value %q to be recognized", name)
+			require.Equal(t, want, got)
+		})
 	}
-	for value, result := range testCases {
-		t.Run(value, func(t *testing.T) {
-			policy, err := pullPolicyWithFlags(value, false, false)
-			if result {
-				require.NoErrorf(t, err, "expected value %q to be recognized", value)
-			} else {
-				require.Errorf(t, err, "did not expect value %q to be recognized as %q", value, policy.String())
-			}
+	for name := range slices.Values([]string{"try", "truth"}) {
+		t.Run(name, func(t *testing.T) {
+			_, err := pullPolicyWithFlags(name, false, false)
+			require.Error(t, err)
 		})
 	}
 }
