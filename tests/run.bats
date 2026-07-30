@@ -714,7 +714,7 @@ function configure_and_check_user() {
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON ubuntu
 	cid=$output
 	run_buildah 125 run --network=bogus $cid cat /etc/hosts
-	expect_output --substring "unable to find network with name or ID bogus: network not found"
+	expect_output --substring "unable to find network with name bogus: network not found"
 	run_buildah run --hostname $hostname $cid cat /etc/hosts
 	expect_output --substring "(10.88.*|10.0.2.100)[[:blank:]]$hostname $cid"
 	ip=$(hostname -I | cut -f 1 -d " ")
