@@ -1,5 +1,6 @@
 require:
     - buildah-tests
+    - coreutils
     - git-daemon
 
 environment:

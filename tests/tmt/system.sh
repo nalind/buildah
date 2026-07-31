@@ -15,4 +15,4 @@ rpm -q \
     netavark \
     systemd
 
-bats /usr/share/buildah/test/system
+bats --jobs $(nproc) --timing /usr/share/buildah/test/system
