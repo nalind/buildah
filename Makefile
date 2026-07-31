@@ -168,11 +168,14 @@ install.go-md2man:
 install.golangci-lint:
 	$(MAKE) -C tests/tools build/golangci-lint
 
-.PHONY: install
-install: bin/buildah
+.PHONY: install.nobuild
+install.nobuild:
 	install -d -m 755 $(DESTDIR)/$(BINDIR)
 	install -m 755 bin/buildah $(DESTDIR)/$(BINDIR)/buildah
 	$(MAKE) -C docs install
+
+.PHONY: install
+install: bin/buildah install.nobuild
 
 .PHONY: uninstall
 uninstall:
