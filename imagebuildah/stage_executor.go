@@ -689,7 +689,7 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 						return nil, fmt.Errorf("unable to resolve argument %q: %w", val, fromErr)
 					}
 					// If the value corresponds to an additional build context,
-					// the mount source is either either the rootfs of the image,
+					// the mount source is either the rootfs of the image,
 					// the filesystem path, or a temporary directory populated
 					// with the contents of the URL, all in preference to any
 					// stage which might have the value as its name.

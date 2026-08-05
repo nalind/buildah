@@ -348,7 +348,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	//   multiple platforms ( more than one platform ) and --manifest
 	//   option then this assignment is insignificant since it will be
 	//   overridden anyways with the id and ref of manifest list later in
-	//   in this code.
+	//   this code.
 	//
 	// * Multi-platform build without manifest list: If this is a build for
 	//   multiple platforms without --manifest then we are free to return

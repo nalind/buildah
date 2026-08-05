@@ -17,7 +17,7 @@ func (n *noopServer) Noop(_ context.Context, req *pb.NoopRequest) (*pb.NoopRespo
 		return nil, syscall.EINVAL
 	}
 	resp := &pb.NoopResponse{}
-	resp.Ignored = req.Ignored
+	resp.Ignored = req.GetIgnored()
 	return resp, nil
 }
 

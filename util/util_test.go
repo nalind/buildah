@@ -1,7 +1,6 @@
 package util //nolint:revive,nolintlint
 
 import (
-	"os"
 	"strconv"
 	"testing"
 
@@ -45,8 +44,7 @@ func TestMergeEnv(t *testing.T) {
 }
 
 func TestRuntime(t *testing.T) {
-	t.Parallel()
-	os.Setenv("CONTAINERS_CONF", "/dev/null")
+	t.Setenv("CONTAINERS_CONF", "/dev/null")
 	conf, _ := config.Default()
 	defaultRuntime := conf.Engine.OCIRuntime
 	runtime := Runtime()
@@ -54,7 +52,7 @@ func TestRuntime(t *testing.T) {
 		t.Fatalf("expected %v, got %v", runtime, defaultRuntime)
 	}
 	defaultRuntime = "myoci"
-	os.Setenv("BUILDAH_RUNTIME", defaultRuntime)
+	t.Setenv("BUILDAH_RUNTIME", defaultRuntime)
 	runtime = Runtime()
 	if runtime != defaultRuntime {
 		t.Fatalf("expected %v, got %v", runtime, defaultRuntime)

@@ -197,7 +197,7 @@ func TestSanitizeImageName(t *testing.T) {
 	}
 	mutateDirectory := func(t *testing.T, parentdir, input, replace string) string {
 		t.Helper()
-		tmpdir, err := os.MkdirTemp(parentdir, "directory")
+		tmpdir, err := os.MkdirTemp(parentdir, "directory") //nolint:usetesting
 		require.NoError(t, err, "creating mutated directory")
 		found := false
 		err = filepath.Walk(input, func(path string, info fs.FileInfo, err error) error {
@@ -311,7 +311,7 @@ func TestSanitizeImageName(t *testing.T) {
 	require.NoError(t, os.Mkdir(archiveDir, 0o700), "creating archives directory")
 
 	// create a normal layout somewhere under contextDir
-	goodLayout, err := os.MkdirTemp(subdirsDir, "goodlayout")
+	goodLayout, err := os.MkdirTemp(subdirsDir, "goodlayout") //nolint:usetesting
 	require.NoErrorf(t, err, "creating a known-good OCI layout")
 	diffDigest, blobDigest := generateLayout(t, goodLayout)
 	goodLayoutRef, err := alltransports.ParseImageName("oci:" + goodLayout)
@@ -321,7 +321,7 @@ func TestSanitizeImageName(t *testing.T) {
 	assert.False(t, sus, "check on known-good OCI layout")
 
 	// copy to a directory
-	goodDir, err := os.MkdirTemp(subdirsDir, "gooddir")
+	goodDir, err := os.MkdirTemp(subdirsDir, "gooddir") //nolint:usetesting
 	require.NoErrorf(t, err, "creating a temporary directory to store a good directory")
 	goodDirRef, err := alltransports.ParseImageName("dir:" + goodDir)
 	require.NoErrorf(t, err, "parsing image reference to good directory")
