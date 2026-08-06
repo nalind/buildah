@@ -2276,16 +2276,16 @@ func copierHandlerPut(ctx context.Context, bulkReader io.Reader, req request, id
 		}()
 		ignoredItems := make(map[string]struct{})
 		tr := tar.NewReader(ctxreader.NewCancelableReader(ctx, bulkReader))
-		hdr, err := tr.Next()
+		hdr, hdrErr := tr.Next()
 		for hdr != nil {
 			nameBeforeRenaming := hdr.Name
 			if len(hdr.Name) == 0 {
 				// no name -> ignore the entry
 				ignoredItems[nameBeforeRenaming] = struct{}{}
-				if err != nil {
+				if hdrErr != nil {
 					break
 				}
-				hdr, err = tr.Next()
+				hdr, hdrErr = tr.Next()
 				continue
 			}
 			if req.PutOptions.Rename != nil {
@@ -2553,13 +2553,13 @@ func copierHandlerPut(ctx context.Context, bulkReader io.Reader, req request, id
 				return fmt.Errorf("copier: put: error setting fflags on %q: %w", path, err)
 			}
 		nextHeader:
-			if err != nil {
+			if hdrErr != nil {
 				break
 			}
-			hdr, err = tr.Next()
+			hdr, hdrErr = tr.Next()
 		}
-		if !errors.Is(err, io.EOF) {
-			return fmt.Errorf("reading tar stream: expected EOF: %w", err)
+		if !errors.Is(hdrErr, io.EOF) {
+			return fmt.Errorf("reading tar stream: expected EOF: %w", hdrErr)
 		}
 		// Drain any remaining data from bulkReader to prevent broken pipe errors.
 		// tar.Reader returns EOF after reading the standard tar EOF marker
