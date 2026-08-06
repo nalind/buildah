@@ -176,7 +176,7 @@ load helpers
   mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged/var/lib/containers/storage
   chmod 755 ${TEST_SCRATCH_DIR}/chroot/merged/var/lib/containers/storage
   # https://github.com/podman-container-tools/buildah/issues/6967
-  # chown -R is not safe against concurent removal, it will exit 1 when
+  # chown -R is not safe against concurrent removal, it will exit 1 when
   # it happens but still walks all files so we can ignore the error here.
   # Bug: https://bugs.gnu.org/81444
   # Only once the fix landed in our test distro images coreutils version this workaround can be removed.
@@ -351,7 +351,7 @@ EOF
   echo "test \"\$(cat /proc/self/setgroups)\" = deny" >> ${TEST_SCRATCH_DIR}/script.sh
   echo "${TEST_SCRATCH_DIR}/copy ${storageopts} dir:\$_BUILDAH_IMAGE_CACHEDIR/$baseimagef containers-storage:$baseimage" >> ${TEST_SCRATCH_DIR}/script.sh
   echo "ctr=\$(${TEST_SCRATCH_DIR}/buildah ${BUILDAH_REGISTRY_OPTS} ${storageopts} from --pull=never -q $baseimage)" >> ${TEST_SCRATCH_DIR}/script.sh
-  echo "${TEST_SCRATCH_DIR}/buildah ${BUILDAH_REGISTRY_OPTS} ${storageopts} run --isolation chroot -v $probe:/probe:ro,z \"\$ctr\" -- sh -c 'echo setgroups:\$(cat /proc/self/setgroups); stat -c \"member_denied=%u:%g:%a\" /probe/member_denied; stat -c \"nonmember_allowed=%u:%g:%a\" /probe/nonmember_allowed; grep ^Gid: /proc/self/status; cat /probe/nonmember_allowed && ! cat /probe/member_denied'" >> ${TEST_SCRATCH_DIR}/script.sh
+  echo "${TEST_SCRATCH_DIR}/buildah ${BUILDAH_REGISTRY_OPTS} ${storageopts} run --isolation chroot -v $probe:/probe:z \"\$ctr\" -- sh -c 'echo setgroups:\$(cat /proc/self/setgroups); stat -c \"member_denied=%u:%g:%a\" /probe/member_denied; stat -c \"nonmember_allowed=%u:%g:%a\" /probe/nonmember_allowed; grep ^Gid: /proc/self/status; cat /probe/nonmember_allowed && ! cat /probe/member_denied'" >> ${TEST_SCRATCH_DIR}/script.sh
 
   # Two namespaces, mirroring the reported environment: the outer one is mapped
   # via newuidmap/newgidmap, which leaves setgroups() permitted, so we can drop
