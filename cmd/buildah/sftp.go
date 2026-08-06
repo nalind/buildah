@@ -253,7 +253,7 @@ func serveSftpCmd(c *cobra.Command, args []string) error {
 		mountPoint = mp
 	} else {
 		// was not a container, and failed to mount an image
-		return fmt.Errorf("mounting builder container, container, or image %q: %w", toMount, err)
+		return fmt.Errorf("mounting builder container, non-builder container, or image %q: %w", toMount, err)
 	}
 
 	logrus.Debugf("mounted %q, serving sftp", mountPoint)

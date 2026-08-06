@@ -83,7 +83,7 @@ func readManifestFromOCIPath(ctx context.Context, sourcePath string) (*specV1.Ma
 	return readManifestFromImageSource(ctx, ociSource)
 }
 
-// openOrCreateSourceImage returns an OCI types.ImageDestination of the the
+// openOrCreateSourceImage returns an OCI types.ImageDestination of the
 // specified `sourcePath`.  Note that if the path doesn't exist, it'll be
 // created along with the OCI directory layout.
 func openOrCreateSourceImage(ctx context.Context, sourcePath string) (types.ImageDestination, error) {

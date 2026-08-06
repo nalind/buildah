@@ -15,7 +15,7 @@ import (
 )
 
 func TestFilesClosedProperlyByBuildDockerfiles(t *testing.T) {
-	// create files in in temp dir
+	// create files in temp dir
 	var paths []string
 	for _, name := range []string{"Dockerfile", "Dockerfile.in"} {
 		fpath, err := filepath.Abs(filepath.Join(t.TempDir(), name))

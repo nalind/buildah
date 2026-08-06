@@ -408,7 +408,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		options.HistoryTimestamp = &timestamp
 	}
 	if exclusiveFlags > 1 {
-		return errors.New("cannot use more then one timestamp option at at time")
+		return errors.New("cannot use more then one timestamp option at a time")
 	}
 
 	// Add builder identity information.

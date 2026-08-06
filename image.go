@@ -821,7 +821,7 @@ func (mb *ociManifestBuilder) manifestAndConfig() ([]byte, []byte, error) {
 }
 
 // filterExclusionsByImage returns a slice of the members of "exclusions" which are present in the image with the specified ID
-func (i containerImageRef) filterExclusionsByImage(ctx context.Context, exclusions []copier.EnsureParentPath, imageID string) ([]copier.EnsureParentPath, error) {
+func (i *containerImageRef) filterExclusionsByImage(ctx context.Context, exclusions []copier.EnsureParentPath, imageID string) ([]copier.EnsureParentPath, error) {
 	if len(exclusions) == 0 || imageID == "" {
 		return nil, nil
 	}
