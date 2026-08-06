@@ -3110,6 +3110,7 @@ func testConditionalRemove(t *testing.T) {
 		description     string
 		subdir          string
 		create          []create
+		symlinks        map[string]string
 		remove          ConditionalRemoveOptions
 		expectedRemoved []string
 		expectedRemain  []string
@@ -3233,6 +3234,41 @@ func testConditionalRemove(t *testing.T) {
 			expectedRemoved: []string{"a", "b", "c/d"},
 			expectedRemain:  []string{"c", "c/e"},
 		},
+		{
+			description: "symlink-in-parent",
+			create: []create{
+				{path: "/target-dir", typeFlag: tar.TypeDir},
+				{path: "/target-dir/a", typeFlag: tar.TypeReg},
+				{path: "/symlink-dir", typeFlag: tar.TypeDir},
+			},
+			symlinks: map[string]string{"symlink-dir/symlink": "../../../../target-dir"},
+			remove: ConditionalRemoveOptions{
+				Paths: []ConditionalRemovePath{
+					{Path: "symlink-dir/symlink/a"},
+				},
+			},
+			expectedRemoved: []string{"symlink-dir/symlink/a"},
+			expectedRemain:  []string{"target-dir", "symlink-dir", "symlink-dir/symlink"},
+		},
+		{
+			description: "symlink-target",
+			create: []create{
+				{path: "/victim", typeFlag: tar.TypeReg},
+				{path: "/symlink-dir", typeFlag: tar.TypeDir},
+			},
+			symlinks: map[string]string{
+				"symlink-dir/escaping":    "../../../../victim",
+				"symlink-dir/nonescaping": "../victim",
+			},
+			remove: ConditionalRemoveOptions{
+				Paths: []ConditionalRemovePath{
+					{Path: "symlink-dir/escaping"},
+					{Path: "symlink-dir/nonescaping"},
+				},
+			},
+			expectedRemoved: []string{"symlink-dir/escaping", "symlink-dir/nonescaping"},
+			expectedRemain:  []string{"victim", "symlink-dir"},
+		},
 	}
 	for i := range testCases {
 		t.Run(testCases[i].description, func(t *testing.T) {
@@ -3248,6 +3284,9 @@ func testConditionalRemove(t *testing.T) {
 			}
 			created, _, err := EnsureContext(t.Context(), tmpdir, testCases[i].subdir, create)
 			require.NoErrorf(t, err, "unexpected error creating %#v", create)
+			for linkPath, linkContents := range testCases[i].symlinks {
+				require.NoError(t, os.Symlink(linkContents, filepath.Join(tmpdir, testCases[i].subdir, linkPath)))
+			}
 			remove := testCases[i].remove
 			for _, what := range created {
 				remove.Paths = append(remove.Paths, ConditionalRemovePath{

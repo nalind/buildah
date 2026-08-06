@@ -2944,22 +2944,14 @@ func copierHandlerConditionalRemove(ctx context.Context, req request, idMappings
 			}
 			uid, gid = hostDirPair.UID, hostDirPair.GID
 		}
-		directory, err := resolvePath(req.Root, req.Directory, true, nil)
-		if err != nil {
-			return errorResponse("copier: conditionalRemove: error resolving %q: %v", req.Directory, err)
-		}
 
-		rel, err := convertToRelSubdirectory(req.Root, directory)
+		itemPath, err := resolvePath(req.Root, filepath.Join(req.Directory, item.Path), false, nil) // Warning: this can refer to an existing (and escaping) symlink
 		if err != nil {
-			return errorResponse("copier: conditionalRemove: error computing path of %q relative to %q: %v", directory, req.Root, err)
+			return errorResponse("copier: conditionalRemove: error resolving %q/%q/%q: %v", req.Root, req.Directory, item.Path, err)
 		}
-
-		components := strings.Split(filepath.Join(rel, item.Path), string(os.PathSeparator))
-		components = slices.DeleteFunc(components, func(s string) bool { return s == "" || s == "." })
-		if len(components) == 0 {
-			continue
+		if itemPath == filepath.Clean(req.Root) { // resolvePath, via filepath.Join, implicitly Clean()s path, but that’s not the case for req.Root.
+			return errorResponse("copier: conditionalRemove: refusing to remove %q/%q because it is the root directory", req.Directory, item.Path)
 		}
-		itemPath := filepath.Join(append([]string{req.Root}, components...)...)
 		itemInfo, err := os.Lstat(itemPath)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
@@ -2969,7 +2961,10 @@ func copierHandlerConditionalRemove(ctx context.Context, req request, idMappings
 			removed = append(removed, item.Path)
 			continue
 		}
-		parentPath := filepath.Dir(itemPath)
+		parentPath, err := resolvePath(req.Root, filepath.Dir(filepath.Join(req.Directory, item.Path)), true, nil)
+		if err != nil {
+			return errorResponse("copier: conditionalRemove: error resolving parent of %q/%q/%q: %v", req.Root, req.Directory, item.Path, err)
+		}
 		parentInfo, err := os.Stat(parentPath)
 		if err != nil {
 			return errorResponse("copier: conditionalRemove: checking on parent directory %q: %v", parentPath, err)
