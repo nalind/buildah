@@ -2401,14 +2401,14 @@ func copierHandlerPut(ctx context.Context, bulkReader io.Reader, req request, id
 				//	todo: the general solution requires resolving to an absolute path, handling
 				//	renaming, and then possibly converting back to a relative symlink
 				// }
-				if err = os.Symlink(filepath.FromSlash(hdr.Linkname), filepath.FromSlash(path)); err != nil && errors.Is(err, os.ErrExist) {
+				if err = os.Symlink(filepath.FromSlash(hdr.Linkname), path); err != nil && errors.Is(err, os.ErrExist) {
 					if req.PutOptions.NoOverwriteDirNonDir {
 						if st, err := os.Lstat(path); err == nil && st.IsDir() {
 							break
 						}
 					}
 					if err = os.RemoveAll(path); err == nil {
-						err = os.Symlink(filepath.FromSlash(hdr.Linkname), filepath.FromSlash(path))
+						err = os.Symlink(filepath.FromSlash(hdr.Linkname), path)
 					}
 				}
 			case tar.TypeChar:
