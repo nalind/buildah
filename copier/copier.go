@@ -2789,18 +2789,17 @@ func copierHandlerEnsure(ctx context.Context, req request, idMappings *idtools.I
 			}
 			uid, gid = hostDirPair.UID, hostDirPair.GID
 		}
-		directory, err := resolvePath(req.Root, req.Directory, true, nil)
-		if err != nil {
-			return errorResponse("copier: ensure: error resolving %q: %v", req.Directory, err)
-		}
 
-		rel, err := convertToRelSubdirectory(req.Root, directory)
+		itemPath, err := resolvePath(req.Root, filepath.Join(req.Directory, item.Path), true, nil)
 		if err != nil {
-			return errorResponse("copier: ensure: error computing path of %q relative to %q: %v", directory, req.Root, err)
+			return errorResponse("copier: ensure: error resolving %q/%q: %v", req.Directory, item.Path, err)
 		}
-
+		relItemPath, err := convertToRelSubdirectory(req.Root, itemPath)
+		if err != nil {
+			return errorResponse("copier: ensure: error computing path of %q relative to %q: %v", itemPath, req.Root, err)
+		}
 		subdir := ""
-		components := strings.Split(filepath.Join(rel, item.Path), string(os.PathSeparator))
+		components := strings.Split(relItemPath, string(os.PathSeparator))
 		components = slices.DeleteFunc(components, func(s string) bool { return s == "" || s == "." })
 		for i, component := range components {
 			parentPath := subdir
@@ -2808,7 +2807,7 @@ func copierHandlerEnsure(ctx context.Context, req request, idMappings *idtools.I
 				parentPath = "."
 			}
 			leaf := filepath.Join(parentPath, component)
-			parentInfo, err := os.Stat(filepath.Join(req.Root, parentPath))
+			parentInfo, err := os.Lstat(filepath.Join(req.Root, parentPath))
 			if err != nil {
 				return errorResponse("copier: ensure: checking datestamps on %q (%d: %v): %v", parentPath, i, components, err)
 			}
