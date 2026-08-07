@@ -677,6 +677,42 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 		}
 	}
 
+	// req.Directory creation does not allow escaping symlinks
+	for _, tc := range []struct{ linkRelPath, expectedDir string }{
+		{"a", "VICTIM/b"},
+		{"a/b", "VICTIM"},
+	} {
+		t.Run(fmt.Sprintf("req.Directory symlinks=%q", tc.linkRelPath), func(t *testing.T) {
+			victim := t.TempDir()
+			fi1, err := os.Lstat(victim)
+			require.NoError(t, err)
+
+			tmp := t.TempDir()
+			linkPath := filepath.Join(tmp, tc.linkRelPath)
+			err = os.MkdirAll(filepath.Dir(linkPath), 0o755)
+			require.NoError(t, err)
+			err = os.Symlink(victim, linkPath)
+			require.NoError(t, err)
+
+			archive := makeArchiveSlice([]tar.Header{})
+			err = Put(tmp, "a/b", PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+			require.NoError(t, err)
+			// The symlink was confined to req.Root
+			expectedDestPath := filepath.Join(tmp, strings.ReplaceAll(tc.expectedDir, "VICTIM", victim))
+			fi, err := os.Lstat(expectedDestPath)
+			require.NoError(t, err)
+			assert.True(t, fi.IsDir())
+			dirs, err := os.ReadDir(expectedDestPath)
+			require.NoError(t, err)
+			assert.Empty(t, dirs)
+
+			// victim was not affected
+			fi2, err := os.Lstat(victim)
+			require.NoError(t, err)
+			assertCtimeMatches(t, fi1, fi2)
+		})
+	}
+
 	// Paths are confined to req.Root
 	type escapingTest struct {
 		headers    []tar.Header
@@ -685,6 +721,25 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 	escapingTests := []escapingTest{
 		{ // Direct overwrite
 			headers: []tar.Header{{Typeflag: tar.TypeReg, Name: "../victim/hello", Mode: 0o600}},
+		},
+		{ // Overwrite through an escaping symlink to directory
+			headers: []tar.Header{
+				{Typeflag: tar.TypeSymlink, Name: "symlink", Linkname: "../victim", Mode: 0o755},
+				{Typeflag: tar.TypeReg, Name: "symlink/hello", Mode: 0o600},
+			},
+		},
+		{ // Overwrite through an absolute symlink to directory
+			headers: []tar.Header{
+				{Typeflag: tar.TypeSymlink, Name: "symlink", Linkname: "@TOP@/victim", Mode: 0o644},
+				{Typeflag: tar.TypeReg, Name: "symlink/hello", Mode: 0o600},
+			},
+		},
+		{ // Overwrite through symlink to directory using paths that _look_ innocuous
+			headers: []tar.Header{
+				{Typeflag: tar.TypeSymlink, Name: "a/b/c", Linkname: "../..", Mode: 0o755}, // Points at the root
+				{Typeflag: tar.TypeSymlink, Name: "a/b/c/d", Linkname: "..", Mode: 0o755},  // = root/..
+				{Typeflag: tar.TypeReg, Name: "a/b/c/d/victim/hello", Mode: 0o600},
+			},
 		},
 		{ // Overwrite through an escaping symlink directly to victim
 			headers: []tar.Header{
@@ -748,7 +803,11 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 				headers[i].Linkname = strings.ReplaceAll(headers[i].Linkname, "@TOP@", topdir)
 			}
 			archive := makeArchiveSlice(headers)
-			_ = Put(dest, dest, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+			err = Put(dest, dest, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+			if err != nil {
+				// os.Root’s errPathEscapes is not exported, so we must use a substring check.
+				assert.True(t, errors.Is(err, fs.ErrNotExist) || strings.Contains(err.Error(), "path escapes from parent"), "%v", err)
+			}
 			if tc.notSymlink != "" {
 				fi, err := os.Lstat(filepath.Join(dest, tc.notSymlink))
 				require.NoError(t, err)
@@ -817,8 +876,43 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 		})
 	}
 
+	// req.Root must not be created/replaced as a non-directory.
 	for _, destSuffix := range []string{"", "/"} {
 		for _, rootName := range []string{".", "/"} {
+			t.Run(fmt.Sprintf("symlink root dest=%s, root=%s", destSuffix, rootName), func(t *testing.T) {
+				victim := t.TempDir()
+				victimFile := filepath.Join(victim, "file")
+				err := os.WriteFile(victimFile, []byte("content"), 0o600)
+				require.NoError(t, err)
+				fis := map[string]os.FileInfo{}
+				for _, path := range []string{victim, victimFile} {
+					fi, err := os.Lstat(path)
+					require.NoError(t, err)
+					fis[path] = fi
+				}
+
+				dest := filepath.Join(t.TempDir(), "dest")
+				err = os.Mkdir(dest, 0o700)
+				require.NoError(t, err)
+
+				archive := makeArchiveSlice([]tar.Header{
+					{Typeflag: tar.TypeSymlink, Name: rootName, Linkname: victim, Mode: 0o700},
+					{Typeflag: tar.TypeReg, Name: filepath.Join(rootName, "file"), Mode: 0o600},
+				})
+				err = Put(dest+destSuffix, dest+destSuffix, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+				require.Error(t, err)
+
+				fi, err := os.Lstat(dest)
+				require.NoError(t, err)
+				assert.True(t, fi.IsDir())
+				// The victim paths were not affected
+				for _, path := range []string{victim, victimFile} {
+					fi, err := os.Lstat(path)
+					require.NoError(t, err)
+					assertCtimeMatches(t, fi, fis[path])
+				}
+			})
+
 			// TypeDir entries for req.Root are accepted.
 			t.Run(fmt.Sprintf("dir root dest=%s, dir=%s", destSuffix, rootName), func(t *testing.T) {
 				dest := filepath.Join(t.TempDir(), "dest")
@@ -838,6 +932,32 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 			})
 		}
 	}
+
+	// The directory times and permissions code does not follow symlinks.
+	mtime := time.Unix(1, 0)
+	atime := time.Unix(2, 0)
+	t.Run("late directory attributes on symlink", func(t *testing.T) {
+		victim := t.TempDir()
+		fi1, err := os.Lstat(victim)
+		require.NoError(t, err)
+
+		dest := t.TempDir()
+		// An explicit FormatPAX is necessary, otherwise archive/tar prefers to use a simpler header which does not encode AccessTime,
+		archive := makeArchiveSlice([]tar.Header{
+			{Typeflag: tar.TypeDir, Name: "dir", Mode: 0o700, ModTime: mtime, AccessTime: atime},
+			{Typeflag: tar.TypeSymlink, Name: "dir", Linkname: victim, Mode: 0o700},
+		})
+		reader := bytes.NewReader(archive)
+		err = Put(dest, dest, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, reader)
+		assert.NoError(t, err)
+		fi, err := os.Lstat(filepath.Join(dest, "dir"))
+		require.NoError(t, err)
+		assert.Equal(t, fs.ModeSymlink, fi.Mode().Type())
+
+		fi2, err := os.Lstat(victim)
+		require.NoError(t, err)
+		assertCtimeMatches(t, fi2, fi1)
+	})
 }
 
 func isExpectedError(err error, inSubdir bool, name string, expectedErrors []expectedError) bool {
