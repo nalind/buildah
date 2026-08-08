@@ -2516,7 +2516,7 @@ func TestResolvePath(t *testing.T) {
 				for _, final := range finals {
 					// Not filepath.Join(root, filepath.FromSlash(c.in)) because that does filepath.Clean() and we want to test inputs with ".."
 					input := root + string(os.PathSeparator) + filepath.FromSlash(c.in)
-					res, err := resolvePath(root, input, final, nil)
+					res, err := resolvePath(root, input, final)
 					require.NoError(t, err)
 					assert.Equal(t, root+filepath.FromSlash(c.expected), res, fmt.Sprintf("input=%q, final=%v", input, final))
 				}
@@ -2533,7 +2533,7 @@ func TestResolvePath(t *testing.T) {
 		err := os.Symlink("/../../..", filepath.Join(root, "link"))
 		require.NoError(t, err)
 		for _, suffix := range []string{"/", "/.", "/./"} {
-			res, err := resolvePath(root+filepath.FromSlash(suffix), filepath.Join(root, "link"), true, nil)
+			res, err := resolvePath(root+filepath.FromSlash(suffix), filepath.Join(root, "link"), true)
 			require.NoError(t, err)
 			assert.Equal(t, root, filepath.Clean(res))
 		}
