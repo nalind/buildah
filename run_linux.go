@@ -99,14 +99,15 @@ func (b *Builder) cdiSetupDevicesInSpec(deviceSpecs []string, configDir string, 
 		// handled by CDI, so we don't need to do anything here.
 		return deviceSpecs, nil
 	}
-	if err := cdi.Configure(cdi.WithSpecDirs(configDirs...)); err != nil {
+	var cache *cdi.Cache
+	if cache, err = cdi.NewCache(cdi.WithSpecDirs(configDirs...), cdi.WithAutoRefresh(false)); err != nil {
 		return nil, fmt.Errorf("CDI default registry ignored configured directories %v: %w", configDirs, err)
 	}
 	leftoverDevices := slices.Clone(deviceSpecs)
-	if err := cdi.Refresh(); err != nil {
+	if err := cache.Refresh(); err != nil {
 		logrus.Warnf("CDI default registry refresh: %v", err)
 	} else {
-		leftoverDevices, err = cdi.InjectDevices(spec, qualifiedDeviceSpecs...)
+		leftoverDevices, err = cache.InjectDevices(spec, qualifiedDeviceSpecs...)
 		if err != nil {
 			return nil, fmt.Errorf("CDI device injection (leftover devices: %v): %w", leftoverDevices, err)
 		}
