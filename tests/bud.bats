@@ -2150,19 +2150,20 @@ _EOF
 # Test adding additional build context but download tar
 @test "build-with-additional-build-context and COPY, additional context from external URL" {
   _prefetch alpine
-  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  starthttpd $(cd ${BUDFILES}/..; pwd)
+  local contextdir=${TEST_SCRATCH_DIR}/context
   mkdir -p $contextdir
 
   cat > $contextdir/Dockerfile << _EOF
 FROM alpine
-COPY --from=crun-context . .
-RUN ls crun-1.4.5
+COPY --from=repo-context . .
+RUN ls objects/pack/
 _EOF
 
   # Test additional context but download from tar
-  run_buildah build $WITH_POLICY_JSON -t source --build-context crun-context=https://github.com/containers/crun/releases/download/1.4.5/crun-1.4.5.tar.xz $contextdir
-  # additional context from tar must show crun binary inside container
-  expect_output --substring "libcrun"
+  run_buildah build $WITH_POLICY_JSON -t source --build-context repo-context=http://0.0.0.0:${HTTP_SERVER_PORT}/git-daemon/bare-podman-repo.tar.gz $contextdir
+  # additional context from tar must show one of the pack files
+  expect_output --substring "pack-"
 }
 
 # Test pinning image
@@ -2259,21 +2260,22 @@ _EOF
 # Test usage of RUN --mount=from=<name> with additional context is URL and mount source is relative using src
 @test "build-with-additional-build-context and RUN --mount=from=, additional-context is URL and mounted from subdir" {
   _prefetch alpine
-  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  starthttpd $(cd ${BUDFILES}/..; pwd)
+  local contextdir=${TEST_SCRATCH_DIR}/context
   mkdir -p $contextdir
 
-  cat > $contextdir/Dockerfile2 << _EOF
+  cat > $contextdir/Dockerfile << _EOF
 FROM alpine as some-stage
 RUN echo world
 
 # hello should get copied since we are giving priority to additional context
 FROM alpine
-RUN --mount=type=bind,src=crun-1.4.5/src,from=some-stage,target=/test,z ls /test
+RUN --mount=type=bind,src=objects/pack,from=some-stage,target=/test,z ls /test
 _EOF
 
   # Additional context for RUN --mount is file on host
-  run_buildah build $WITH_POLICY_JSON --build-context some-stage=https://github.com/containers/crun/releases/download/1.4.5/crun-1.4.5.tar.xz -t test -f $contextdir/Dockerfile2
-  expect_output --substring "crun.c"
+  run_buildah build $WITH_POLICY_JSON --build-context some-stage=http://0.0.0.0:${HTTP_SERVER_PORT}/git-daemon/bare-podman-repo.tar.gz -t test $contextdir
+  expect_output --substring "pack-"
 }
 
 @test "build-with-additional-build-context and COPY, ensure .containerignore is being respected" {
@@ -4017,14 +4019,16 @@ function validate_instance_compression {
 
 @test "bud with Dockerfile from valid URL" {
   target=url-image
-  url=https://raw.githubusercontent.com/containers/buildah/main/tests/bud/from-scratch/Dockerfile
+  starthttpd $BUDFILES
+  url=http://0.0.0.0:${HTTP_SERVER_PORT}/from-scratch/Dockerfile
   run_buildah build $WITH_POLICY_JSON -t ${target} ${url}
   run_buildah from ${target}
 }
 
 @test "bud with Dockerfile from invalid URL" {
   target=url-image
-  url=https://raw.githubusercontent.com/containers/buildah/main/tests/bud/from-scratch/Dockerfile.bogus
+  starthttpd $BUDFILES
+  url=http://0.0.0.0:${HTTP_SERVER_PORT}/from-scratch/Dockerfile.bogus
   run_buildah 125 build $WITH_POLICY_JSON -t ${target} ${url}
   expect_output --substring "invalid response status 404"
 }
