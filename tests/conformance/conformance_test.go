@@ -26,6 +26,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	archive "github.com/moby/go-archive"
 	mobyclient "github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/versions"
 	digest "github.com/opencontainers/go-digest"
@@ -49,8 +50,6 @@ import (
 	"go.podman.io/image/v5/transports/alltransports"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"
-	"go.podman.io/storage/pkg/archive"
-	"go.podman.io/storage/pkg/idtools"
 	"go.podman.io/storage/pkg/ioutils"
 	"go.podman.io/storage/pkg/reexec"
 )
@@ -723,7 +722,7 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 	excludes = append(excludes, "!"+dockerfileRelativePath, "!.dockerignore")
 	tarOptions := &archive.TarOptions{
 		ExcludePatterns: excludes,
-		ChownOpts:       &idtools.IDPair{UID: 0, GID: 0},
+		ChownOpts:       &archive.ChownOpts{UID: 0, GID: 0},
 	}
 	input, err := archive.TarWithOptions(contextDir, tarOptions)
 	require.NoErrorf(t, err, "archiving context directory %q", contextDir)
