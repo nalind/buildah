@@ -179,6 +179,9 @@ func lookupUserInContainer(rootdir, username string) (uid uint64, gid uint64, er
 		return pwd.uid, pwd.gid, nil
 	}
 
+	if err := rc.Err(); err != nil {
+		return 0, 0, fmt.Errorf("reading /etc/passwd: %w", err)
+	}
 	return 0, 0, user.UnknownUserError(fmt.Sprintf("error looking up user %q", username))
 }
 
@@ -205,6 +208,9 @@ func lookupGroupForUIDInContainer(rootdir string, userid uint64) (username strin
 		return pwd.name, pwd.gid, nil
 	}
 
+	if err := rc.Err(); err != nil {
+		return "", 0, fmt.Errorf("reading /etc/passwd: %w", err)
+	}
 	return "", 0, ErrNoSuchUser
 }
 
@@ -235,6 +241,9 @@ func lookupAdditionalGroupsForUIDInContainer(rootdir string, userid uint64) (gid
 		}
 		grp = parseNextGroup(rc)
 	}
+	if err := rc.Err(); err != nil {
+		return nil, fmt.Errorf("reading /etc/group: %w", err)
+	}
 	return gid, nil
 }
 
@@ -261,6 +270,9 @@ func lookupGroupInContainer(rootdir, groupname string) (gid uint64, err error) {
 		return grp.gid, nil
 	}
 
+	if err := rc.Err(); err != nil {
+		return 0, fmt.Errorf("reading /etc/group: %w", err)
+	}
 	return 0, user.UnknownGroupError(fmt.Sprintf("error looking up group %q", groupname))
 }
 
@@ -287,6 +299,9 @@ func lookupUIDInContainer(rootdir string, uid uint64) (string, uint64, error) {
 		return pwd.name, pwd.gid, nil
 	}
 
+	if err := rc.Err(); err != nil {
+		return "", 0, fmt.Errorf("reading /etc/passwd: %w", err)
+	}
 	return "", 0, user.UnknownUserError(fmt.Sprintf("error looking up uid %d", uid))
 }
 
@@ -313,5 +328,8 @@ func lookupHomedirInContainer(rootdir string, uid uint64) (string, error) {
 		return pwd.home, nil
 	}
 
+	if err := rc.Err(); err != nil {
+		return "", fmt.Errorf("reading /etc/passwd: %w", err)
+	}
 	return "", user.UnknownUserError(fmt.Sprintf("error looking up homedir for uid %d", uid))
 }
