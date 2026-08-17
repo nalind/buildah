@@ -102,51 +102,57 @@ func scanWithoutComments(rc *bufio.Scanner) (string, bool) {
 	}
 }
 
+// parseNextPasswd returns the next entry it can parse. Lines it cannot parse
+// are skipped, so one bad line does not hide the entries after it. It returns
+// nil at the end of the file and when the scanner failed, so callers need to
+// check rc.Err() to tell those two apart.
 func parseNextPasswd(rc *bufio.Scanner) *lookupPasswdEntry {
-	if !rc.Scan() {
-		return nil
+	for rc.Scan() {
+		fields := strings.Split(rc.Text(), ":")
+		if len(fields) != 7 {
+			continue
+		}
+		uid, err := strconv.ParseUint(fields[2], 10, 32)
+		if err != nil {
+			continue
+		}
+		gid, err := strconv.ParseUint(fields[3], 10, 32)
+		if err != nil {
+			continue
+		}
+		return &lookupPasswdEntry{
+			name: fields[0],
+			uid:  uid,
+			gid:  gid,
+			home: fields[5],
+		}
 	}
-	line := rc.Text()
-	fields := strings.Split(line, ":")
-	if len(fields) != 7 {
-		return nil
-	}
-	uid, err := strconv.ParseUint(fields[2], 10, 32)
-	if err != nil {
-		return nil
-	}
-	gid, err := strconv.ParseUint(fields[3], 10, 32)
-	if err != nil {
-		return nil
-	}
-	return &lookupPasswdEntry{
-		name: fields[0],
-		uid:  uid,
-		gid:  gid,
-		home: fields[5],
-	}
+	return nil
 }
 
+// parseNextGroup behaves like parseNextPasswd, see the comment there.
 func parseNextGroup(rc *bufio.Scanner) *lookupGroupEntry {
-	// On FreeBSD, /etc/group may contain comments:
-	//   https://man.freebsd.org/cgi/man.cgi?query=group&sektion=5&format=html
-	// We need to ignore those lines rather than trying to parse them.
-	line, ok := scanWithoutComments(rc)
-	if !ok {
-		return nil
-	}
-	fields := strings.Split(line, ":")
-	if len(fields) != 4 {
-		return nil
-	}
-	gid, err := strconv.ParseUint(fields[2], 10, 32)
-	if err != nil {
-		return nil
-	}
-	return &lookupGroupEntry{
-		name: fields[0],
-		gid:  gid,
-		user: fields[3],
+	for {
+		// On FreeBSD, /etc/group may contain comments:
+		//   https://man.freebsd.org/cgi/man.cgi?query=group&sektion=5&format=html
+		// We need to ignore those lines rather than trying to parse them.
+		line, ok := scanWithoutComments(rc)
+		if !ok {
+			return nil
+		}
+		fields := strings.Split(line, ":")
+		if len(fields) != 4 {
+			continue
+		}
+		gid, err := strconv.ParseUint(fields[2], 10, 32)
+		if err != nil {
+			continue
+		}
+		return &lookupGroupEntry{
+			name: fields[0],
+			gid:  gid,
+			user: fields[3],
+		}
 	}
 }
 
