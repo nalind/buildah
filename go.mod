@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.14
 	github.com/moby/buildkit v0.31.2
-	github.com/moby/go-archive v0.2.0
+	github.com/moby/go-archive v0.3.0
 	github.com/moby/moby/client v0.5.1
 	github.com/moby/sys/capability v0.4.0
 	github.com/moby/sys/devices v0.1.0
