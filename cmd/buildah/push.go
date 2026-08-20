@@ -155,9 +155,11 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	dest, err := alltransports.ParseImageName(destSpec)
 	// add the docker:// transport to see if they neglected it.
 	if err != nil {
-		destTransport := strings.Split(destSpec, ":")[0]
-		if t := transports.Get(destTransport); t != nil {
-			return err
+		destTransport, _, destHasSeparator := strings.Cut(destSpec, ":")
+		if destHasSeparator {
+			if t := transports.Get(destTransport); t != nil {
+				return err
+			}
 		}
 
 		if strings.Contains(destSpec, "://") {
