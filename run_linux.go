@@ -1160,8 +1160,6 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 			}
 
 			overlayOpts := overlay.Options{
-				RootUID:                idMaps.rootUID,
-				RootGID:                idMaps.rootGID,
 				UpperDirOptionFragment: upperDir,
 				WorkDirOptionFragment:  workDir,
 				GraphOpts:              slices.Clone(b.store.GraphOptions()),
