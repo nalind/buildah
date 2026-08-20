@@ -436,7 +436,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		}
 	}
 
-	if !options.NoHostname && !(slices.Contains(volumes, "/etc/hostname")) {
+	if !options.NoHostname && !slices.Contains(volumes, "/etc/hostname") {
 		hostnameFile, err := b.generateHostname(path, spec.Hostname, rootIDPair)
 		if err != nil {
 			return err
