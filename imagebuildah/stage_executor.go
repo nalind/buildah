@@ -384,10 +384,7 @@ func (s *stageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 	default:
 	}
 	for _, cp := range copies {
-		if cp.KeepGitDir {
-			if cp.Download {
-				return errors.New("ADD --keep-git-dir is not supported")
-			}
+		if cp.KeepGitDir && !cp.Download {
 			return errors.New("COPY --keep-git-dir is not supported")
 		}
 		if cp.Link && s.executor.layers {
@@ -654,6 +651,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			gitOptions := options
 			gitOptions.Excludes = copyExcludesWithoutContainerIgnore
 			gitOptions.IgnoreFile = ""
+			gitOptions.KeepGitDir = copy.KeepGitDir
 			if err := s.builder.AddContext(s.ctx, copy.Dest, copy.Download, gitOptions, gitSources...); err != nil {
 				return err
 			}
