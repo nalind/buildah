@@ -363,8 +363,8 @@ github.com/opencontainers/runtime-tools/validate/capabilities
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/openshift/imagebuilder v1.2.21
-## explicit; go 1.25.5
+# github.com/openshift/imagebuilder v1.2.22
+## explicit; go 1.25.9
 github.com/openshift/imagebuilder
 github.com/openshift/imagebuilder/dockerclient
 github.com/openshift/imagebuilder/dockerfile/command
