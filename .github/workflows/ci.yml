@@ -96,7 +96,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
-          cache: true
+          cache: true # zizmor: ignore[cache-poisoning] not used for release builds
 
       - name: make vendor
         run: |
@@ -116,7 +116,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
-          cache: true
+          cache: true # zizmor: ignore[cache-poisoning] not used for release builds
 
       - name: Build all cross targets
         run: make -j4 cross CGO_ENABLED=0
@@ -204,7 +204,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
-          cache: true
+          cache: true # zizmor: ignore[cache-poisoning] not used for release builds
 
       - name: Build darwin/arm64
         run: make bin/buildah.darwin.arm64
