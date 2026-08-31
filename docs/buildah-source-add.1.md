@@ -7,7 +7,7 @@ buildah\-source\-add - Add a source artifact to a source image
 **buildah source add** [*options*] *path* *artifact*
 
 ## DESCRIPTION
-Add add a source artifact to a source image.  The artifact will be added as a
+Add a source artifact to a source image.  The artifact will be added as a
 gzip-compressed tar ball.  Add attempts to auto-tar and auto-compress only if
 necessary.
 

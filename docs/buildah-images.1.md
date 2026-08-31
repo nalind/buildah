@@ -33,16 +33,16 @@ Filter output based on conditions provided (default []).
     Filter on images created before the given image.
 
   **dangling=true|false**
-    Show dangling images. An images is considered to be dangling if it has no associated names and tags.
+    Show dangling images. An image is considered to be dangling if it has no associated names and tags.
 
   **id=id**
     Show image with this specific ID.
 
   **intermediate=true|false**
-    Show intermediate images. An images is considered to be an indermediate image if it is dangling and has no children.
+    Show intermediate images. An image is considered to be an intermediate image if it is dangling and has no children.
 
   **label=key[=value]**
-    Filter by images labels key and/or value.
+    Filter by image labels key and/or value.
 
   **readonly=true|false**
     Show only read only images or Read/Write images. The default is to show both.  Read/Only images can be configured by modifying the  "additionalimagestores" in the /etc/containers/storage.conf file.
