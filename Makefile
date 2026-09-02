@@ -155,6 +155,7 @@ validate: all lint lint-entrypoint codespell
 	./hack/xref-helpmsgs-manpages
 	./tests/validate/pr-should-include-tests
 	./tests/validate/commit-subject-check.sh $(EPOCH_TEST_COMMIT)..$(HEAD)
+	./tests/helpers.bash.t
 
 .PHONY: lint-entrypoint
 lint-entrypoint: internal/mkcw/embed/entrypoint_amd64.gz
