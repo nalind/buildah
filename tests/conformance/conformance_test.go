@@ -976,9 +976,9 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	defer func() {
 		closer.Close()
 	}()
-	img, err := image.FromSource(ctx, nil, src)
+	unparsed := image.UnparsedInstance(src, nil)
+	img, err := image.FromUnparsedImage(ctx, nil, unparsed)
 	require.NoErrorf(t, err, "error opening image %q to read its configuration", imageName)
-	closer = img
 	// read the manifest in its original form
 	rawManifest, _, err := img.Manifest(ctx)
 	require.NoErrorf(t, err, "error reading raw manifest from image %q", imageName)
