@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -138,7 +139,7 @@ func (n *Netns) getOrCreateNetns() (netns.NetNS, bool, error) {
 		// the file and mounting it. Or if the file is not on tmpfs (deleted on boot)
 		// you might run into it as well: https://github.com/containers/podman/issues/25144
 		// We have to do this because NewNSAtPath fails with EEXIST otherwise
-		if errors.As(err, &netns.NSPathNotNSErr{}) {
+		if _, ok := errors.AsType[netns.NSPathNotNSErr](err); ok {
 			// We don't care if this fails, NewNSAtPath() should return the real error.
 			_ = os.Remove(nsPath)
 		}
@@ -375,6 +376,14 @@ func (n *Netns) setupMounts() error {
 	// 2. /run/systemd -> XDG_RUNTIME_DIR/rootless-netns/run/systemd (only if it exists)
 	// 3. XDG_RUNTIME_DIR/rootless-netns/resolv.conf -> /etc/resolv.conf or XDG_RUNTIME_DIR/rootless-netns/run/symlink/target
 	// 4. XDG_RUNTIME_DIR/rootless-netns/run -> /run
+
+	// Keep this thread locked for good. ns.Do() saves and restores only the
+	// network namespace, so once we unshare below the mount namespace is never
+	// put back. Do() unlocks the thread on its way out, which would return it
+	// to the go scheduler still inside this namespace and later goroutines
+	// would run there. Taking a second lock here means Do()'s unlock leaves it
+	// locked, so the runtime scraps the thread when the goroutine ends.
+	runtime.LockOSThread()
 
 	// Create a new mount namespace,
 	// this must happen inside the netns thread.
