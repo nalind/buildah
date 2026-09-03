@@ -4,7 +4,7 @@ load helpers
 
 @test "log-level set to debug" {
   run_buildah --log-level=debug images -q
-  expect_output --substring "level=debug "
+  expect_output --substring " DEBUG "
 }
 
 @test "log-level set to info" {
