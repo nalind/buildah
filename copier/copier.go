@@ -662,7 +662,8 @@ func Symlink(root string, target string, link string, options SymlinkOptions) er
 
 // cleanerReldirectory resolves relative path candidate lexically, attempting
 // to ensure that when joined as a subdirectory of another directory, it does
-// not reference anything outside of that other directory.
+// not reference anything outside of that other directory.  If the candidate
+// path is "/", it returns ".".
 func cleanerReldirectory(candidate string) string {
 	cleaned := strings.TrimPrefix(filepath.Clean(string(os.PathSeparator)+candidate), string(os.PathSeparator))
 	if cleaned == "" {
@@ -2133,7 +2134,19 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			// of the root, to improve our compatibility with
 			// recent versions of go-archive
 			cleanerHdrName := cleanerReldirectory(filepath.FromSlash(hdr.Name))
-			if _, err := osRoot.Lstat(cleanerHdrName); err != nil && !errors.Is(err, os.ErrNotExist) {
+			if err := func(hdrName string) error {
+				var hdrNameByComponent []string
+				for hdrName != "." && hdrName != "/" {
+					hdrNameByComponent = append(hdrNameByComponent, hdrName)
+					hdrName = filepath.Dir(hdrName)
+				}
+				for _, partial := range slices.Backward(hdrNameByComponent) {
+					if _, err := osRoot.Lstat(partial); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(cleanerHdrName); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
 			// figure out who should own this new item
