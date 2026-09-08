@@ -40,10 +40,10 @@ require (
 	go.podman.io/common v0.69.2-0.20260903170514-ee32b1de185b
 	go.podman.io/image/v5 v5.41.2-0.20260904133341-741ebc37de41
 	go.podman.io/storage v1.64.1-0.20260903170514-ee32b1de185b
-	golang.org/x/crypto v0.56.0
+	golang.org/x/crypto v0.57.0
 	golang.org/x/sync v0.23.0
 	golang.org/x/sys v0.48.0
-	golang.org/x/term v0.45.0
+	golang.org/x/term v0.46.0
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
 	tags.cncf.io/container-device-interface v1.1.1
@@ -131,8 +131,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
 	k8s.io/klog v1.0.0 // indirect
