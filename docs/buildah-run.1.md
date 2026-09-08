@@ -13,6 +13,18 @@ inherited from the container's image or as specified using previous calls to
 the *buildah config* command.  To execute *buildah run* within an
 interactive shell, specify the --tty option.
 
+In Linux environments, when `buildah run` is running inside of a container
+(assumed to be the case when the `container` environment variable is set)
+started by an unprivileged user ("rootless mode"), if the platform of the base
+image does not match the local system, and `buildah` can confirm that it will
+encounter `exec format error` errors if it attempts to run binaries for a
+number of architectures, before starting the container to run the specified
+command, `buildah` will attempt to register binfmt_misc handlers configured in
+the /etc/binfmt.d, /run/binfmt.d, and /usr/lib/binfmt.d directories in the
+container where `buildah run` is running.  This default can be forced on or
+disabled by setting the `BUILDAH_REGISTER_BINFMT` environment variable when
+running `buildah run`.
+
 ## OPTIONS
 
 **--add-history**
