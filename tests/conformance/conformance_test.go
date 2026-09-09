@@ -112,7 +112,7 @@ func TestMain(m *testing.M) {
 	}
 	testDataDir = filepath.Join(cwd, "testdata")
 
-	flag.StringVar(&logLevel, "log-level", "error", "buildah logging log level")
+	flag.StringVar(&logLevel, "log-level", "warn", "buildah logging log level")
 	flag.BoolVar(&compareLayers, "compare-layers", compareLayers, "compare instruction-by-instruction")
 	flag.BoolVar(&compareImagebuilder, "compare-imagebuilder", compareImagebuilder, "also compare using imagebuilder")
 	flag.StringVar(&testDataDir, "testdata", testDataDir, "location of conformance testdata")
