@@ -40,7 +40,7 @@ function check_imgtype() {
 
   # Can't embed entire string because the '+' sign is interpreted as regex
   expect_output --substring \
-                "level=error msg=\"expected .* type \\\\\".*, got " \
+                "ERROR expected .* type \".*, got " \
                 "Checking imagetype($image) == $2"
 }
 
