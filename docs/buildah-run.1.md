@@ -278,11 +278,10 @@ to buildah run, the option given would be `--runtime-flag log-format=json`.
 
 **--tty**, **--terminal**, **-t**
 
-By default a pseudo-TTY is allocated only when buildah's standard input is
-attached to a pseudo-TTY.  Setting the `--tty` option to `true` will cause a
-pseudo-TTY to be allocated inside the container connecting the user's "terminal"
-with the stdin and stdout stream of the container.  Setting the `--tty` option to
-`false` will prevent the pseudo-TTY from being allocated.
+By default a pseudo-TTY is allocated when buildah's standard input is
+attached to a terminal.  Setting the `--tty` option to `true` will force a
+pseudo-TTY to be allocated for the container.  Setting the `--tty` option to
+`false` will prevent a pseudo-TTY from being allocated.
 
 **--umask** *octal_value*
 

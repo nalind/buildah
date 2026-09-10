@@ -1170,7 +1170,7 @@ user with `uid=50000`:
 # Switch to application user (Note that uid depends on container image)
 USER app
 # ...and check whether ssh identities are available
-RUN --mount=type=ssh,uid=50000 \
+RUN --mount=type=ssh,uid=50000 \\
     ssh-add -L
 ```
 
