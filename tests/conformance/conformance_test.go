@@ -3,7 +3,6 @@ package conformance
 import (
 	"archive/tar"
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -203,7 +202,6 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 	if mutate != nil {
 		mutate(&test)
 	}
-	ctx := t.Context()
 
 	cwd, err := os.Getwd()
 	require.NoError(t, err, "error finding current directory")
@@ -332,7 +330,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 	// connect to dockerd using the docker client library
 	mobyClient, err := mobyclient.New(mobyclient.FromEnv)
 	require.NoError(t, err, "unable to initialize docker.client")
-	_, err = mobyClient.Ping(ctx, mobyclient.PingOptions{
+	_, err = mobyClient.Ping(t.Context(), mobyclient.PingOptions{
 		NegotiateAPIVersion: true,
 	})
 	require.NoError(t, err)
@@ -358,7 +356,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 	client, err := docker.NewVersionedClientFromEnv("1.51")
 	require.NoError(t, err, "unable to initialize docker client")
 	var dockerVersion []string
-	if version, err := client.Version(); err == nil {
+	if version, err := client.VersionWithContext(t.Context()); err == nil {
 		if version != nil {
 			for _, s := range *version {
 				dockerVersion = append(dockerVersion, s)
@@ -385,7 +383,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 				if line > 1 || !bytes.HasPrefix(dockerfileContents, []byte("FROM ")) {
 					// hack: skip trying to build just the first FROM line
 					t.Run(fmt.Sprintf("%d", line), func(t *testing.T) {
-						testConformanceInternalBuild(ctx, t, cwd, store, client, mobyClient, fmt.Sprintf("%s.%d", buildahImage, line), fmt.Sprintf("%s.%d", dockerImage, line), fmt.Sprintf("%s.%d", imagebuilderImage, line), contextDir, dockerfileName, dockerfileContents[:i+1], test, line, i == len(dockerfileContents)-1, dockerVersion)
+						testConformanceInternalBuild(t, cwd, store, client, mobyClient, fmt.Sprintf("%s.%d", buildahImage, line), fmt.Sprintf("%s.%d", dockerImage, line), fmt.Sprintf("%s.%d", imagebuilderImage, line), contextDir, dockerfileName, dockerfileContents[:i+1], test, line, i == len(dockerfileContents)-1, dockerVersion)
 					})
 				}
 				line++
@@ -393,11 +391,11 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 		}
 	} else {
 		// build to completion
-		testConformanceInternalBuild(ctx, t, cwd, store, client, mobyClient, buildahImage, dockerImage, imagebuilderImage, contextDir, dockerfileName, dockerfileContents, test, 0, true, dockerVersion)
+		testConformanceInternalBuild(t, cwd, store, client, mobyClient, buildahImage, dockerImage, imagebuilderImage, contextDir, dockerfileName, dockerfileContents, test, 0, true, dockerVersion)
 	}
 }
 
-func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string, store storage.Store, client *docker.Client, mobyClient *mobyclient.Client, buildahImage, dockerImage, imagebuilderImage, contextDir, dockerfileName string, dockerfileContents []byte, test testCase, line int, finalOfSeveral bool, dockerVersion []string) {
+func testConformanceInternalBuild(t *testing.T, cwd string, store storage.Store, client *docker.Client, mobyClient *mobyclient.Client, buildahImage, dockerImage, imagebuilderImage, contextDir, dockerfileName string, dockerfileContents []byte, test testCase, line int, finalOfSeveral bool, dockerVersion []string) {
 	var buildahLog, dockerLog, imagebuilderLog []byte
 	var buildahRef, dockerRef, imagebuilderRef types.ImageReference
 
@@ -436,19 +434,19 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 
 	// build using docker
 	if !test.withoutDocker {
-		dockerRef, dockerLog = buildUsingDocker(ctx, t, client, mobyClient, test, dockerImage, contextDir, dockerfileName, line, finalOfSeveral)
+		dockerRef, dockerLog = buildUsingDocker(t, client, mobyClient, test, dockerImage, contextDir, dockerfileName, line, finalOfSeveral)
 		if dockerRef != nil {
 			defer func() {
 				err := client.RemoveImageExtended(dockerImage, docker.RemoveImageOptions{
-					Context: ctx,
+					Context: t.Context(),
 					Force:   true,
 				})
 				assert.Nil(t, err, "error deleting newly-built-by-docker image %q", dockerImage)
 			}()
 		}
-		saveReport(ctx, t, dockerRef, filepath.Join(dockerDir, t.Name()), dockerfileContents, dockerLog, dockerVersion)
+		saveReport(t, dockerRef, filepath.Join(dockerDir, t.Name()), dockerfileContents, dockerLog, dockerVersion)
 		if finalOfSeveral && compareLayers {
-			saveReport(ctx, t, dockerRef, filepath.Join(dockerDir, t.Name(), ".."), dockerfileContents, dockerLog, dockerVersion)
+			saveReport(t, dockerRef, filepath.Join(dockerDir, t.Name(), ".."), dockerfileContents, dockerLog, dockerVersion)
 		}
 	}
 
@@ -462,15 +460,15 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 		if imagebuilderRef != nil {
 			defer func() {
 				err := client.RemoveImageExtended(imagebuilderImage, docker.RemoveImageOptions{
-					Context: ctx,
+					Context: t.Context(),
 					Force:   true,
 				})
 				assert.Nil(t, err, "error deleting newly-built-by-imagebuilder image %q", imagebuilderImage)
 			}()
 		}
-		saveReport(ctx, t, imagebuilderRef, filepath.Join(imagebuilderDir, t.Name()), dockerfileContents, imagebuilderLog, dockerVersion)
+		saveReport(t, imagebuilderRef, filepath.Join(imagebuilderDir, t.Name()), dockerfileContents, imagebuilderLog, dockerVersion)
 		if finalOfSeveral && compareLayers {
-			saveReport(ctx, t, imagebuilderRef, filepath.Join(imagebuilderDir, t.Name(), ".."), dockerfileContents, imagebuilderLog, dockerVersion)
+			saveReport(t, imagebuilderRef, filepath.Join(imagebuilderDir, t.Name(), ".."), dockerfileContents, imagebuilderLog, dockerVersion)
 		}
 	}
 
@@ -479,16 +477,16 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	}
 
 	// always build using buildah
-	buildahRef, buildahLog = buildUsingBuildah(ctx, t, store, test, buildahImage, contextDir, dockerfileName, line, finalOfSeveral)
+	buildahRef, buildahLog = buildUsingBuildah(t, store, test, buildahImage, contextDir, dockerfileName, line, finalOfSeveral)
 	if buildahRef != nil {
 		defer func() {
-			err := buildahRef.DeleteImage(ctx, nil)
+			err := buildahRef.DeleteImage(t.Context(), nil)
 			assert.Nil(t, err, "error deleting newly-built-by-buildah image %q", buildahImage)
 		}()
 	}
-	saveReport(ctx, t, buildahRef, filepath.Join(buildahDir, t.Name()), dockerfileContents, buildahLog, nil)
+	saveReport(t, buildahRef, filepath.Join(buildahDir, t.Name()), dockerfileContents, buildahLog, nil)
 	if finalOfSeveral && compareLayers {
-		saveReport(ctx, t, buildahRef, filepath.Join(buildahDir, t.Name(), ".."), dockerfileContents, buildahLog, nil)
+		saveReport(t, buildahRef, filepath.Join(buildahDir, t.Name(), ".."), dockerfileContents, buildahLog, nil)
 	}
 
 	if t.Failed() {
@@ -584,7 +582,7 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	}
 }
 
-func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, test testCase, buildahImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (buildahRef types.ImageReference, buildahLog []byte) {
+func buildUsingBuildah(t *testing.T, store storage.Store, test testCase, buildahImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (buildahRef types.ImageReference, buildahLog []byte) {
 	// buildah tests might be using transient mounts. replace "@@TEMPDIR@@"
 	// in such specifications with the path of the context directory
 	var transientMounts []string
@@ -646,7 +644,7 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 		Args:                    maps.Clone(test.buildArgs),
 	}
 	// build the image and gather output. log the output if the build part of the test failed
-	imageID, _, err := imagebuildah.BuildDockerfiles(ctx, store, options, dockerfileName)
+	imageID, _, err := imagebuildah.BuildDockerfiles(t.Context(), store, options, dockerfileName)
 	if err != nil {
 		output.WriteString("\n" + err.Error())
 	}
@@ -675,6 +673,7 @@ func pullImageIfMissing(t *testing.T, client *docker.Client, image string) {
 			tag = "latest"
 		}
 		pullOptions := docker.PullImageOptions{
+			Context:    t.Context(),
 			Repository: repository,
 			Tag:        tag,
 		}
@@ -685,7 +684,7 @@ func pullImageIfMissing(t *testing.T, client *docker.Client, image string) {
 	}
 }
 
-func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, mobyClient *mobyclient.Client, test testCase, dockerImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (dockerRef types.ImageReference, dockerLog []byte) {
+func buildUsingDocker(t *testing.T, client *docker.Client, mobyClient *mobyclient.Client, test testCase, dockerImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (dockerRef types.ImageReference, dockerLog []byte) {
 	// compute the path of the dockerfile relative to the build context
 	dockerfileRelativePath, err := filepath.Rel(contextDir, dockerfileName)
 	require.NoErrorf(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
@@ -740,7 +739,7 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 	// set up build options
 	output := &bytes.Buffer{}
 	options := docker.BuildImageOptions{
-		Context:             ctx,
+		Context:             t.Context(),
 		Dockerfile:          dockerfileRelativePath,
 		InputStream:         input,
 		OutputStream:        output,
@@ -773,7 +772,7 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 	if err != nil {
 		output.WriteString("\n" + err.Error())
 	}
-	if _, err := mobyClient.BuildCachePrune(ctx, mobyclient.BuildCachePruneOptions{All: true}); err != nil {
+	if _, err := mobyClient.BuildCachePrune(t.Context(), mobyclient.BuildCachePruneOptions{All: true}); err != nil {
 		t.Logf("docker build cache prune: %v", err)
 	}
 
@@ -954,7 +953,7 @@ func fsHeaderForEntry(hdr *tar.Header) FSHeader {
 }
 
 // save information about the specified image to the specified directory
-func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, directory string, dockerfileContents []byte, buildLog []byte, version []string) {
+func saveReport(t *testing.T, ref types.ImageReference, directory string, dockerfileContents []byte, buildLog []byte, version []string) {
 	imageName := ""
 	// make sure the directory exists
 	err := os.MkdirAll(directory, 0o755)
@@ -975,23 +974,23 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 		return
 	}
 	imageName = transports.ImageName(ref)
-	src, err := ref.NewImageSource(ctx, nil)
+	src, err := ref.NewImageSource(t.Context(), nil)
 	require.NoErrorf(t, err, "error opening image %q as source to read its configuration", imageName)
 	closer := io.Closer(src)
 	defer func() {
 		closer.Close()
 	}()
-	unparsed := image.UnparsedInstance(src, nil)
-	img, err := image.FromUnparsedImage(ctx, nil, unparsed)
+	img, err := image.FromSource(t.Context(), nil, src)
 	require.NoErrorf(t, err, "error opening image %q to read its configuration", imageName)
+	closer = img
 	// read the manifest in its original form
-	rawManifest, _, err := img.Manifest(ctx)
+	rawManifest, _, err := img.Manifest(t.Context())
 	require.NoErrorf(t, err, "error reading raw manifest from image %q", imageName)
 	// read the config blob in its original form
-	rawConfig, err := img.ConfigBlob(ctx)
+	rawConfig, err := img.ConfigBlob(t.Context())
 	require.NoErrorf(t, err, "error reading configuration from image %q", imageName)
 	// read the config blob, converted to OCI format by the image library, and re-encode it
-	ociConfig, err := img.OCIConfig(ctx)
+	ociConfig, err := img.OCIConfig(t.Context())
 	require.NoErrorf(t, err, "error reading OCI-format configuration from image %q", imageName)
 	encodedConfig, err := json.Marshal(ociConfig)
 	require.NoErrorf(t, err, "error encoding OCI-format configuration from image %q for saving", imageName)
@@ -1005,7 +1004,7 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	err = os.WriteFile(filepath.Join(directory, "config.json"), rawConfig, 0o644)
 	require.NoErrorf(t, err, "error saving original configuration from image %q", imageName)
 	// start pulling layer information
-	layerBlobInfos, err := img.LayerInfosForCopy(ctx)
+	layerBlobInfos, err := img.LayerInfosForCopy(t.Context())
 	require.NoErrorf(t, err, "error reading blob infos for image %q", imageName)
 	if len(layerBlobInfos) == 0 {
 		layerBlobInfos = img.LayerInfos()
@@ -1013,7 +1012,7 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	fstree := FSTree{Tree: FSEntry{Children: make(map[string]*FSEntry)}}
 	// grab digest and header information from the layer blob
 	for _, layerBlobInfo := range layerBlobInfos {
-		rc, _, err := src.GetBlob(ctx, layerBlobInfo, nil)
+		rc, _, err := src.GetBlob(t.Context(), layerBlobInfo, nil)
 		require.NoErrorf(t, err, "error reading blob %+v for image %q", layerBlobInfo, imageName)
 		defer rc.Close()
 		layer := summarizeLayer(t, imageName, layerBlobInfo, rc)
@@ -4210,13 +4209,11 @@ func TestCommit(t *testing.T) {
 		dockerDir = filepath.Join(tempdir, "docker")
 	}
 
-	ctx := t.Context()
-
 	// connect to dockerd using go-dockerclient
 	client, err := docker.NewClientFromEnv()
 	require.NoErrorf(t, err, "unable to initialize docker client")
 	var dockerVersion []string
-	if version, err := client.Version(); err == nil {
+	if version, err := client.VersionWithContext(t.Context()); err == nil {
 		if version != nil {
 			for _, s := range *version {
 				dockerVersion = append(dockerVersion, s)
@@ -4260,16 +4257,9 @@ func TestCommit(t *testing.T) {
 				tag = "latest"
 			}
 			baseImage = repository + ":" + tag
-			if _, err := client.InspectImage(test.baseImage); err != nil && errors.Is(err, docker.ErrNoSuchImage) {
-				// oh, we need to pull the base image
-				err = client.PullImage(docker.PullImageOptions{
-					Repository: repository,
-					Tag:        tag,
-				}, docker.AuthConfiguration{})
-				require.NoErrorf(t, err, "pulling base image")
-			}
+			pullImageIfMissing(t, client, baseImage)
 			container, err := client.CreateContainer(docker.CreateContainerOptions{
-				Context: ctx,
+				Context: t.Context(),
 				Config: &docker.Config{
 					Image: baseImage,
 				},
@@ -4278,24 +4268,28 @@ func TestCommit(t *testing.T) {
 			if err == nil {
 				defer func(containerName string) {
 					err := client.RemoveContainer(docker.RemoveContainerOptions{
-						ID:    containerName,
-						Force: true,
+						Context: t.Context(),
+						ID:      containerName,
+						Force:   true,
 					})
 					assert.Nil(t, err, "error deleting working docker container %q", containerName)
 				}(container.ID)
 			}
 			dockerImageName := "committed:" + strconv.Itoa(testIndex)
 			dockerImage, err := client.CommitContainer(docker.CommitContainerOptions{
+				Context:    t.Context(),
 				Container:  container.ID,
 				Changes:    test.changes,
 				Run:        test.config,
 				Repository: dockerImageName,
 			})
 			assert.NoErrorf(t, err, "committing the working container with docker")
+			_, err = client.InspectImage(dockerImage.ID)
+			require.NoError(t, err, "inspecting the just-committed image %q", dockerImageName)
 			if err == nil {
 				defer func(dockerImageName string) {
 					err := client.RemoveImageExtended(dockerImageName, docker.RemoveImageOptions{
-						Context: ctx,
+						Context: t.Context(),
 						Force:   true,
 					})
 					assert.Nil(t, err, "error deleting newly-built docker image %q", dockerImage.ID)
@@ -4306,7 +4300,7 @@ func TestCommit(t *testing.T) {
 
 			if len(test.derivedChanges) > 0 || test.derivedConfig != nil {
 				container, err := client.CreateContainer(docker.CreateContainerOptions{
-					Context: ctx,
+					Context: t.Context(),
 					Config: &docker.Config{
 						Image: dockerImage.ID,
 					},
@@ -4315,23 +4309,27 @@ func TestCommit(t *testing.T) {
 				if err == nil {
 					defer func(containerName string) {
 						err := client.RemoveContainer(docker.RemoveContainerOptions{
-							ID:    containerName,
-							Force: true,
+							Context: t.Context(),
+							ID:      containerName,
+							Force:   true,
 						})
 						assert.Nil(t, err, "error deleting derived docker container %q", containerName)
 					}(container.ID)
 				}
 				derivedImageName := "derived:" + strconv.Itoa(testIndex)
 				derivedImage, err := client.CommitContainer(docker.CommitContainerOptions{
+					Context:    t.Context(),
 					Container:  container.ID,
 					Changes:    test.derivedChanges,
 					Run:        test.derivedConfig,
 					Repository: derivedImageName,
 				})
 				assert.NoErrorf(t, err, "committing the derived container with docker")
+				_, err = client.InspectImage(derivedImage.ID)
+				require.NoError(t, err, "inspecting the just-committed image %q", derivedImageName)
 				defer func(derivedImageName string) {
 					err := client.RemoveImageExtended(derivedImageName, docker.RemoveImageOptions{
-						Context: ctx,
+						Context: t.Context(),
 						Force:   true,
 					})
 					assert.Nil(t, err, "error deleting newly-derived docker image %q", derivedImage.ID)
@@ -4341,7 +4339,7 @@ func TestCommit(t *testing.T) {
 			}
 
 			// create the test container, then commit it, using the buildah API
-			builder, err := buildah.NewBuilder(ctx, store, buildah.BuilderOptions{
+			builder, err := buildah.NewBuilder(t.Context(), store, buildah.BuilderOptions{
 				FromImage: baseImage,
 			})
 			require.NoErrorf(t, err, "creating the working container with buildah")
@@ -4353,7 +4351,7 @@ func TestCommit(t *testing.T) {
 			if test.config != nil {
 				overrideConfig = config.Schema2ConfigFromGoDockerclientConfig(test.config)
 			}
-			buildahID, _, _, err := builder.Commit(ctx, nil, buildah.CommitOptions{
+			buildahID, _, _, err := builder.Commit(t.Context(), nil, buildah.CommitOptions{
 				PreferredManifestType: manifest.DockerV2Schema2MediaType,
 				OverrideChanges:       test.changes,
 				OverrideConfig:        overrideConfig,
@@ -4363,7 +4361,7 @@ func TestCommit(t *testing.T) {
 			assert.NoErrorf(t, err, "parsing name of newly-built buildah image")
 
 			if len(test.derivedChanges) > 0 || test.derivedConfig != nil {
-				derivedBuilder, err := buildah.NewBuilder(ctx, store, buildah.BuilderOptions{
+				derivedBuilder, err := buildah.NewBuilder(t.Context(), store, buildah.BuilderOptions{
 					FromImage: buildahID,
 				})
 				require.NoErrorf(t, err, "creating the derived container with buildah")
@@ -4375,7 +4373,7 @@ func TestCommit(t *testing.T) {
 				if test.derivedConfig != nil {
 					overrideConfig = config.Schema2ConfigFromGoDockerclientConfig(test.derivedConfig)
 				}
-				derivedID, _, _, err := builder.Commit(ctx, nil, buildah.CommitOptions{
+				derivedID, _, _, err := builder.Commit(t.Context(), nil, buildah.CommitOptions{
 					PreferredManifestType: manifest.DockerV2Schema2MediaType,
 					OverrideChanges:       test.derivedChanges,
 					OverrideConfig:        overrideConfig,
@@ -4386,8 +4384,8 @@ func TestCommit(t *testing.T) {
 			}
 
 			// scan the images
-			saveReport(ctx, t, dockerRef, filepath.Join(dockerDir, t.Name()), []byte{}, []byte{}, dockerVersion)
-			saveReport(ctx, t, buildahRef, filepath.Join(buildahDir, t.Name()), []byte{}, []byte{}, dockerVersion)
+			saveReport(t, dockerRef, filepath.Join(dockerDir, t.Name()), []byte{}, []byte{}, dockerVersion)
+			saveReport(t, buildahRef, filepath.Join(buildahDir, t.Name()), []byte{}, []byte{}, dockerVersion)
 			// compare the scans
 			_, originalDockerConfig, ociDockerConfig, fsDocker := readReport(t, filepath.Join(dockerDir, t.Name()))
 			_, originalBuildahConfig, ociBuildahConfig, fsBuildah := readReport(t, filepath.Join(buildahDir, t.Name()))
