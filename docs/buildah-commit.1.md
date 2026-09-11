@@ -428,7 +428,7 @@ This example commits the container to the image on the local registry using cred
 This example saves an image based on the container, but stores dates based on epoch time.
 `buildah commit --timestamp=0 containerID newImageName`
 
-### Building an multi-architecture image using the --manifest option (requires emulation software)
+### Building a multi-architecture image using the --manifest option (requires emulation software)
 
 ```
 #!/bin/sh

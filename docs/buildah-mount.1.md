@@ -21,7 +21,7 @@ with `buildah unshare` you can then use `buildah mount` and have
 access to the mounted file system.
 
 ## RETURN VALUE
-The location of the mounted file system.  On error an empty string and errno is
+The location of the mounted file system.  On error an empty string and errno are
 returned.
 
 ## OPTIONS

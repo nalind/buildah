@@ -1280,7 +1280,7 @@ Sets the configuration for user namespaces when handling `RUN` instructions.
 The configured value can be "" (the empty string) , "private" or "auto" to indicate
 that a new user namespace should be created, it can be "host" to indicate that
 the user namespace in which `buildah` itself is being run should be reused, or
-it can be the path to an user namespace which is already in use by another
+it can be the path to a user namespace that is already in use by another
 process.
 
 auto: automatically create a unique user namespace.
@@ -1578,7 +1578,7 @@ FROM --after=builder oci-archive:fedora.ociarchive
 # This stage will wait for builder to complete before evaluating FROM
 ```
 
-### Building an multi-architecture image using the --manifest option (requires emulation software)
+### Building a multi-architecture image using the --manifest option (requires emulation software)
 
 buildah build --arch arm --manifest myimage /tmp/mysrc
 
