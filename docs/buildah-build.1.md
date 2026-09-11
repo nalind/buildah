@@ -1280,7 +1280,7 @@ Sets the configuration for user namespaces when handling `RUN` instructions.
 The configured value can be "" (the empty string) , "private" or "auto" to indicate
 that a new user namespace should be created, it can be "host" to indicate that
 the user namespace in which `buildah` itself is being run should be reused, or
-it can be the path to a user namespace which is already in use by another
+it can be the path to a user namespace that is already in use by another
 process.
 
 auto: automatically create a unique user namespace.
