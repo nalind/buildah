@@ -184,8 +184,10 @@ func writeToDirectory(root string, hdr *tar.Header, content io.Reader) error {
 // which refer to filesystem objects, where relative path names are evaluated
 // relative to "contextDir", it will create a copy of the original image, under
 // "tmpdir", which contains no symbolic links.  It it returns a parseable
-// reference to the image which should be used.
-func ImageName(store storage.Store, transportName, restOfImageName, contextDir, tmpdir string) (newFrom string, err error) {
+// reference to the image which should be used, and a boolean indicating if the
+// name of the source location should be avoided when naming the copy of the
+// image that is written to local storage.
+func ImageName(store storage.Store, transportName, restOfImageName, contextDir, tmpdir string) (newFrom string, nameless bool, err error) {
 	seenEntries := make(map[string]struct{})
 	// we're going to try to create a temporary directory or file, but if
 	// we fail, make sure that they get removed immediately
@@ -209,12 +211,12 @@ func ImageName(store storage.Store, transportName, restOfImageName, contextDir, 
 	var imageArchive io.ReadCloser
 	switch transportName {
 	case dockerTransport.Transport.Name(), "docker-daemon", openshiftTransport.Transport.Name(): // ok, these are all remote
-		return transportName + ":" + restOfImageName, nil
+		return transportName + ":" + restOfImageName, false, nil
 	case storageTransport.Transport.Name(): // local, expected to already be there, but might not be in this store, so check on that
 		if _, err := storageTransport.Transport.ParseStoreReference(store, restOfImageName); err != nil {
-			return "", fmt.Errorf("looking for image %q in local storage: %w", restOfImageName, err)
+			return "", false, fmt.Errorf("looking for image %q in local storage: %w", restOfImageName, err)
 		}
-		return restOfImageName, nil
+		return restOfImageName, false, nil
 	case dockerArchiveTransport.Transport.Name(), ociArchiveTransport.Transport.Name(): // these are, basically, tarballs
 		// these take the form path[:stuff]
 		transportRef := restOfImageName
@@ -226,7 +228,7 @@ func ImageName(store storage.Store, transportName, restOfImageName, contextDir, 
 		// create a temporary file to use as our new archive
 		tw, f, err = newArchiveDestination(tmpdir)
 		if err != nil {
-			return "", fmt.Errorf("creating temporary copy of base image: %w", err)
+			return "", false, fmt.Errorf("creating temporary copy of base image: %w", err)
 		}
 		newImageDestination = f.Name()
 		defer func() {
@@ -256,7 +258,7 @@ func ImageName(store storage.Store, transportName, restOfImageName, contextDir, 
 		}
 		// create a new directory to use as our new layout directory
 		if newImageDestination, err = newDirectoryDestination(tmpdir); err != nil {
-			return "", fmt.Errorf("creating temporary copy of base image: %w", err)
+			return "", false, fmt.Errorf("creating temporary copy of base image: %w", err)
 		}
 		// archive the entire layout directory for copying to the new layout directory
 		tarOptions := &archive.TarOptions{}
@@ -268,7 +270,7 @@ func ImageName(store storage.Store, transportName, restOfImageName, contextDir, 
 		transportRef := restOfImageName
 		// create a new directory to use as our new image directory
 		if newImageDestination, err = newDirectoryDestination(tmpdir); err != nil {
-			return "", fmt.Errorf("creating temporary copy of base image: %w", err)
+			return "", false, fmt.Errorf("creating temporary copy of base image: %w", err)
 		}
 		// archive the entire directory for copying to the new directory
 		archiveSource = transportRef
@@ -277,10 +279,10 @@ func ImageName(store storage.Store, transportName, restOfImageName, contextDir, 
 		// generate the new reference using the directory
 		newFrom = transportName + ":" + newImageDestination
 	default:
-		return "", fmt.Errorf("unexpected container image transport %q", transportName)
+		return "", false, fmt.Errorf("unexpected container image transport %q", transportName)
 	}
 	if err != nil {
-		return "", fmt.Errorf("error archiving source at %q under %q", archiveSource, contextDir)
+		return "", false, fmt.Errorf("error archiving source at %q under %q", archiveSource, contextDir)
 	}
 
 	// start reading the archived content
@@ -297,11 +299,11 @@ func ImageName(store storage.Store, transportName, restOfImageName, contextDir, 
 		// it as the archive
 		if isEmbeddedArchive {
 			if hdr.Typeflag != tar.TypeReg {
-				return "", fmt.Errorf("internal error passing archive contents: embedded archive type was %c instead of %c", hdr.Typeflag, tar.TypeReg)
+				return "", false, fmt.Errorf("internal error passing archive contents: embedded archive type was %c instead of %c", hdr.Typeflag, tar.TypeReg)
 			}
 			decompressed, _, decompressErr := compression.AutoDecompress(tr)
 			if decompressErr != nil {
-				return "", fmt.Errorf("error decompressing-if-necessary archive %q: %w", archiveSource, decompressErr)
+				return "", false, fmt.Errorf("error decompressing-if-necessary archive %q: %w", archiveSource, decompressErr)
 			}
 			defer func() {
 				if err := decompressed.Close(); err != nil {
@@ -322,28 +324,28 @@ func ImageName(store storage.Store, transportName, restOfImageName, contextDir, 
 			writeError = writeToDirectory(newImageDestination, hdr, io.LimitReader(tr, hdr.Size))
 		}
 		if writeError != nil {
-			return "", fmt.Errorf("writing copy of image to %q: %w", newImageDestination, writeError)
+			return "", false, fmt.Errorf("writing copy of image to %q: %w", newImageDestination, writeError)
 		}
 		hdr, err = tr.Next()
 	}
 	if err != nil && !errors.Is(err, io.EOF) {
-		return "", fmt.Errorf("reading archive of base image: %w", err)
+		return "", false, fmt.Errorf("reading archive of base image: %w", err)
 	}
 	if isEmbeddedArchive {
 		logrus.Warnf("expected to have archived a copy of %q, missed it", archiveSource)
 	}
 	if tw != nil {
 		if err := tw.Close(); err != nil {
-			return "", fmt.Errorf("wrapping up writing copy of base image to archive %q: %w", newImageDestination, err)
+			return "", false, fmt.Errorf("wrapping up writing copy of base image to archive %q: %w", newImageDestination, err)
 		}
 		tw = nil
 	}
 	if f != nil {
 		if err := f.Close(); err != nil {
-			return "", fmt.Errorf("closing copy of base image in archive file %q: %w", newImageDestination, err)
+			return "", false, fmt.Errorf("closing copy of base image in archive file %q: %w", newImageDestination, err)
 		}
 		f = nil
 	}
 	succeeded = true
-	return newFrom, nil
+	return newFrom, true, nil
 }

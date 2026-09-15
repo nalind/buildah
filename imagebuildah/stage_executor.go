@@ -1018,18 +1018,18 @@ func (s *stageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 // copy of the original image, under "tmpdir", which contains no symbolic
 // links, and return either the original image reference or a reference to a
 // sanitized copy which should be used instead.
-func (s *stageExecutor) sanitizeFrom(from, tmpdir string) (newFrom string, err error) {
+func (s *stageExecutor) sanitizeFrom(from, tmpdir string) (newFrom string, ignoreName bool, err error) {
 	transportName, restOfImageName, maybeHasTransportName := strings.Cut(from, ":")
 	if !maybeHasTransportName || transports.Get(transportName) == nil {
 		if _, err = reference.ParseNormalizedNamed(from); err == nil {
 			// this is a normal-looking image-in-a-registry-or-named-in-storage name
-			return from, nil
+			return from, false, nil
 		}
 		if img, err := s.executor.store.Image(from); img != nil && err == nil {
 			// this is an image ID
-			return from, nil
+			return from, false, nil
 		}
-		return "", fmt.Errorf("parsing image name %q: %w", from, err)
+		return "", false, fmt.Errorf("parsing image name %q: %w", from, err)
 	}
 	// TODO: drop this part and just return an error... someday
 	return sanitize.ImageName(s.executor.store, transportName, restOfImageName, s.executor.contextDir, tmpdir)
@@ -1103,7 +1103,7 @@ func (s *stageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		}
 	}
 
-	sanitizedFrom, err := s.sanitizeFrom(from, tmpdir.GetTempDir())
+	sanitizedFrom, ignoreBaseImageName, err := s.sanitizeFrom(from, tmpdir.GetTempDir())
 	if err != nil {
 		return nil, fmt.Errorf("invalid base image specification %q: %w", from, err)
 	}
@@ -1145,36 +1145,37 @@ func (s *stageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 	}
 
 	builderOptions := buildah.BuilderOptions{
-		Args:                  ib.Args,
-		FromImage:             sanitizedFrom,
-		GroupAdd:              s.executor.groupAdd,
-		PullPolicy:            pullPolicy,
-		ContainerSuffix:       s.executor.containerSuffix,
-		Registry:              s.executor.registry,
-		BlobDirectory:         s.executor.blobDirectory,
-		SignaturePolicyPath:   s.executor.signaturePolicyPath,
-		ReportWriter:          s.executor.reportWriter,
-		SystemContext:         s.systemContext,
-		Isolation:             s.executor.isolation,
-		NamespaceOptions:      s.executor.namespaceOptions,
-		ConfigureNetwork:      s.executor.configureNetwork,
-		NetworkInterface:      s.executor.networkInterface,
-		IDMappingOptions:      s.executor.idmappingOptions,
-		CommonBuildOpts:       s.executor.commonBuildOptions,
-		DefaultMountsFilePath: s.executor.defaultMountsFilePath,
-		Format:                s.executor.outputFormat,
-		Capabilities:          s.executor.capabilities,
-		Devices:               s.executor.devices,
-		DeviceSpecs:           s.executor.deviceSpecs,
-		MaxPullRetries:        s.executor.maxPullPushRetries,
-		PullRetryDelay:        s.executor.retryPullPushDelay,
-		OciDecryptConfig:      s.executor.ociDecryptConfig,
-		Logger:                s.executor.logger,
-		ProcessLabel:          s.executor.processLabel,
-		MountLabel:            s.executor.mountLabel,
-		PreserveBaseImageAnns: preserveBaseImageAnnotations,
-		CDIConfigDir:          s.executor.cdiConfigDir,
-		CompatScratchConfig:   s.executor.compatScratchConfig,
+		Args:                      ib.Args,
+		FromImage:                 sanitizedFrom,
+		GroupAdd:                  s.executor.groupAdd,
+		PullPolicy:                pullPolicy,
+		ContainerSuffix:           s.executor.containerSuffix,
+		Registry:                  s.executor.registry,
+		BlobDirectory:             s.executor.blobDirectory,
+		SignaturePolicyPath:       s.executor.signaturePolicyPath,
+		ReportWriter:              s.executor.reportWriter,
+		SystemContext:             s.systemContext,
+		Isolation:                 s.executor.isolation,
+		NamespaceOptions:          s.executor.namespaceOptions,
+		ConfigureNetwork:          s.executor.configureNetwork,
+		NetworkInterface:          s.executor.networkInterface,
+		IDMappingOptions:          s.executor.idmappingOptions,
+		CommonBuildOpts:           s.executor.commonBuildOptions,
+		DefaultMountsFilePath:     s.executor.defaultMountsFilePath,
+		Format:                    s.executor.outputFormat,
+		Capabilities:              s.executor.capabilities,
+		Devices:                   s.executor.devices,
+		DeviceSpecs:               s.executor.deviceSpecs,
+		MaxPullRetries:            s.executor.maxPullPushRetries,
+		PullRetryDelay:            s.executor.retryPullPushDelay,
+		OciDecryptConfig:          s.executor.ociDecryptConfig,
+		Logger:                    s.executor.logger,
+		ProcessLabel:              s.executor.processLabel,
+		MountLabel:                s.executor.mountLabel,
+		PreserveBaseImageAnns:     preserveBaseImageAnnotations,
+		CDIConfigDir:              s.executor.cdiConfigDir,
+		CompatScratchConfig:       s.executor.compatScratchConfig,
+		RemoveBaseImageNameOnPull: ignoreBaseImageName,
 	}
 
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)

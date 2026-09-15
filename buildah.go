@@ -381,6 +381,10 @@ type BuilderOptions struct {
 	// (when set to true), or with a minimal initial configuration which
 	// has a working directory set in it.
 	CompatScratchConfig types.OptionalBool
+	// RemoveBaseImageNameOnPull specifies whether or not we try to name
+	// a local image after the remote one if we end up needing to pull the
+	// base image.
+	RemoveBaseImageNameOnPull bool
 }
 
 // ImportOptions are used to initialize a Builder from an existing container

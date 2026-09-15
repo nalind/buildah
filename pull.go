@@ -8,10 +8,15 @@ import (
 	"time"
 
 	encconfig "github.com/containers/ocicrypt/config"
+	digest "github.com/opencontainers/go-digest"
 	"go.podman.io/buildah/define"
 	"go.podman.io/buildah/pkg/blobcache"
 	"go.podman.io/common/libimage"
 	"go.podman.io/common/pkg/config"
+	"go.podman.io/image/v5/image"
+	"go.podman.io/image/v5/manifest"
+	imagestorage "go.podman.io/image/v5/storage"
+	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"
 )
@@ -58,6 +63,9 @@ type PullOptions struct {
 	// DestinationLookupReference provides a function to modify or replace
 	// destination references.
 	DestinationLookupReferenceFunc libimage.LookupReferenceFunc
+	// IgnoreSourceName specifies whether or not we try to name a local
+	// image after the remote one.
+	IgnoreSourceName bool
 }
 
 // Pull copies the contents of the image from somewhere else to local storage.  Returns the
@@ -76,6 +84,8 @@ func Pull(ctx context.Context, imageName string, options PullOptions) (imageID s
 	libimageOptions.OciDecryptConfig = options.OciDecryptConfig
 	libimageOptions.AllTags = options.AllTags
 	libimageOptions.RetryDelay = &options.RetryDelay
+	libimageOptions.PolicyAllowStorage = true
+	sourceImageID := ""
 	libimageOptions.SourceLookupReferenceFunc = func(ref types.ImageReference) (types.ImageReference, error) {
 		if ref == nil {
 			return nil, errors.New("source lookup callback was passed a nil reference")
@@ -85,11 +95,85 @@ func Pull(ctx context.Context, imageName string, options PullOptions) (imageID s
 				return nil, err
 			}
 		}
+		srcTransport := ref.Transport()
+		if srcTransport == nil {
+			return nil, errors.New("source lookup callback was passed a reference with no identified transport")
+		}
+		srcTransportName := srcTransport.Name()
+		if srcTransportName == "" {
+			return nil, errors.New("source lookup callback was passed a reference with an unnamed transport")
+		}
+		if options.IgnoreSourceName {
+			if options.AllTags {
+				return nil, errors.New("can't compute image IDs for all tags")
+			}
+			srcImage, err := ref.NewImageSource(ctx, options.SystemContext)
+			if err != nil {
+				return nil, fmt.Errorf("opening image %q to work out its ID: %w", transports.ImageName(ref), err)
+			}
+			defer srcImage.Close()
+			var instanceDigest *digest.Digest
+			manifestBytes, manifestType, err := srcImage.GetManifest(ctx, nil)
+			if err != nil {
+				return nil, fmt.Errorf("reading manifest from %q to work out its ID: %w", transports.ImageName(ref), err)
+			}
+			if manifest.MIMETypeIsMultiImage(manifestType) {
+				list, err := manifest.ListFromBlob(manifestBytes, manifestType)
+				if err != nil {
+					return nil, fmt.Errorf("parsing manifest from %q to find which image in its list we're using, to work out its ID: %w", transports.ImageName(ref), err)
+				}
+				chosen, err := list.ChooseInstance(options.SystemContext)
+				if err != nil {
+					return nil, fmt.Errorf("selecting an image from list in %q, to work out its ID: %w", transports.ImageName(ref), err)
+				}
+				instanceDigest = &chosen
+				manifestBytes, manifestType, err = srcImage.GetManifest(ctx, instanceDigest)
+				if err != nil {
+					return nil, fmt.Errorf("reading manifest from %q to work out its ID: %w", transports.ImageName(ref), err)
+				}
+			}
+			unparsedImage := image.UnparsedInstance(srcImage, instanceDigest)
+			img, err := image.FromUnparsedImage(ctx, options.SystemContext, unparsedImage)
+			if err != nil {
+				return nil, fmt.Errorf("reading info for image %q, to work out its ID: %w", transports.ImageName(ref), err)
+			}
+			parsedManifest, err := manifest.FromBlob(manifestBytes, manifestType)
+			if err != nil {
+				return nil, fmt.Errorf("parsing manifest for %q, to work out its ID: %w", transports.ImageName(ref), err)
+			}
+			config, err := img.OCIConfig(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("reading config blob for %q, to work out its ID: %w", transports.ImageName(ref), err)
+			}
+			// set a "force this image ID" for use by the
+			// destination callback, depending on the destination
+			// to not modify or transform the image metadata
+			sourceImageID, err = parsedManifest.ImageID(config.RootFS.DiffIDs)
+			if err != nil {
+				return nil, fmt.Errorf("computing image ID for %q: %w", transports.ImageName(ref), err)
+			}
+		}
 		return ref, nil
 	}
 	libimageOptions.DestinationLookupReferenceFunc = func(ref types.ImageReference) (types.ImageReference, error) {
 		if ref == nil {
 			return nil, errors.New("destination lookup callback was passed a nil reference")
+		}
+		destTransport := ref.Transport()
+		if destTransport == nil {
+			return nil, errors.New("destination lookup callback was passed a reference with no identified transport")
+		}
+		destTransportName := destTransport.Name()
+		if destTransportName == "" {
+			return nil, errors.New("destination lookup callback was passed a reference with an unnamed transport")
+		}
+		if options.IgnoreSourceName && destTransportName == imagestorage.Transport.Name() {
+			if sourceImageID == "" {
+				return nil, errors.New("need to write image using just its ID, but did not determine its ID (yet?)")
+			}
+			if ref, err = destTransport.ParseReference("@" + sourceImageID); err != nil {
+				return nil, err
+			}
 		}
 		if options.DestinationLookupReferenceFunc != nil {
 			if ref, err = options.DestinationLookupReferenceFunc(ref); err != nil {

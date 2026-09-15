@@ -193,12 +193,13 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 				return fmt.Errorf("unable to obtain decrypt config: %w", err2)
 			}
 			options := buildah.BuilderOptions{
-				FromImage:           iopts.from,
-				BlobDirectory:       iopts.blobCache,
-				SignaturePolicyPath: iopts.signaturePolicy,
-				SystemContext:       systemContext,
-				MaxPullRetries:      iopts.retry,
-				OciDecryptConfig:    decryptConfig,
+				FromImage:                 iopts.from,
+				BlobDirectory:             iopts.blobCache,
+				SignaturePolicyPath:       iopts.signaturePolicy,
+				SystemContext:             systemContext,
+				MaxPullRetries:            iopts.retry,
+				OciDecryptConfig:          decryptConfig,
+				RemoveBaseImageNameOnPull: true,
 			}
 			if iopts.retryDelay != "" {
 				options.PullRetryDelay, err = time.ParseDuration(iopts.retryDelay)

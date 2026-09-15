@@ -156,6 +156,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		pullOptions.PullPolicy = options.PullPolicy
 		pullOptions.BlobDirectory = options.BlobDirectory
 		pullOptions.MaxRetries = options.MaxPullRetries
+		pullOptions.IgnoreSourceName = options.RemoveBaseImageNameOnPull
 
 		pulledImageID, err := Pull(ctx, options.FromImage, pullOptions)
 		if err != nil {

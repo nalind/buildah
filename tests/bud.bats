@@ -10894,3 +10894,51 @@ _EOF
     run_buildah --log-level error build $WITH_POLICY_JSON --layers -t quiet -f $contextdir/Containerfile $contextdir
     assert "$output" "!~" "Using cache"
 }
+
+build_from_other_transport_unnamed() {
+  # verify that pulling an image during "from" from a non-registry doesn't
+  # use naming information from that location
+  skip_if_no_runtime
+
+  _prefetch docker.io/library/alpine:latest
+  _prefetch docker.io/library/ubuntu:latest
+
+  local transport=$1
+  local remainder=${transport//-}
+  local cidfile=${TEST_SCRATCH_DIR}/cid.txt
+
+  # write an image based on the alpine image in a location with "its name is ubuntu" metadata
+  run_buildah $WITH_POLICY_JSON from --cidfile ${cidfile} docker.io/library/alpine:latest
+  pushd ${TEST_SCRATCH_DIR}
+  run_buildah commit $(<${cidfile}) $transport:./${remainder}:docker.io/library/ubuntu:latest
+  popd
+
+  run_buildah images
+
+  # build using that as a base image
+  echo FROM $transport:./${remainder}:docker.io/library/ubuntu:latest > ${TEST_SCRATCH_DIR}/Dockerfile
+  echo RUN cat /etc/os-release >> ${TEST_SCRATCH_DIR}/Dockerfile
+  run_buildah build $WITH_POLICY_JSON -t dir:${TEST_SCRATCH_DIR}/ignored1 ${TEST_SCRATCH_DIR}
+  expect_output --substring ID=alpine
+
+  # force the image to not be pulled, to see what we have in local storage by
+  # that name
+  echo FROM docker.io/library/ubuntu:latest > ${TEST_SCRATCH_DIR}/Dockerfile
+  echo RUN cat /etc/os-release >> ${TEST_SCRATCH_DIR}/Dockerfile
+  run_buildah build $WITH_POLICY_JSON --pull=never -t dir:${TEST_SCRATCH_DIR}/ignored2 ${TEST_SCRATCH_DIR}
+  expect_output --substring ID=ubuntu
+
+  run_buildah images
+}
+
+@test "build-from-other-transports-unnamed-oci-layout" {
+  build_from_other_transport_unnamed oci
+}
+
+@test "build-from-other-transports-unnamed-oci-archive" {
+  build_from_other_transport_unnamed oci-archive
+}
+
+@test "build-from-other-transports-unnamed-docker-archive" {
+  build_from_other_transport_unnamed docker-archive
+}
