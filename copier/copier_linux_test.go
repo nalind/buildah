@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/moby/sys/capability"
@@ -193,4 +194,12 @@ func TestGetNoCrossDevice(t *testing.T) {
 	if err == nil {
 		t.Logf("got unexpected entry for %q", th.Name)
 	}
+}
+
+// assertCtimeMatches asserts that fi1 and fi2 have the same ctime.
+func assertCtimeMatches(t *testing.T, fi1, fi2 os.FileInfo) {
+	t.Helper()
+	st1 := fi1.Sys().(*syscall.Stat_t)
+	st2 := fi2.Sys().(*syscall.Stat_t)
+	assert.Equal(t, st1.Ctim, st2.Ctim)
 }
