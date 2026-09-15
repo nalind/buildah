@@ -2,12 +2,14 @@ package buildah
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
 
 	encconfig "github.com/containers/ocicrypt/config"
 	"go.podman.io/buildah/define"
+	"go.podman.io/buildah/pkg/blobcache"
 	"go.podman.io/common/libimage"
 	"go.podman.io/common/pkg/config"
 	"go.podman.io/image/v5/types"
@@ -33,8 +35,6 @@ type PullOptions struct {
 	// BlobDirectory is the name of a directory in which we'll attempt to
 	// store copies of layer blobs that we pull down, if any.  It should
 	// already exist.
-	//
-	// Not applicable if DestinationLookupReferenceFunc is set.
 	BlobDirectory string
 	// AllTags is a boolean value that determines if all tagged images
 	// will be downloaded from the repository. The default is false.
@@ -52,11 +52,11 @@ type PullOptions struct {
 	OciDecryptConfig *encconfig.DecryptConfig
 	// PullPolicy takes the value PullIfMissing, PullAlways, PullIfNewer, or PullNever.
 	PullPolicy define.PullPolicy
-	// SourceLookupReference provides a function to look up source
-	// references.
+	// SourceLookupReference provides a function to modify or replace
+	// source references.
 	SourceLookupReferenceFunc libimage.LookupReferenceFunc
-	// DestinationLookupReference provides a function to look up destination
-	// references. Overrides BlobDirectory, if set.
+	// DestinationLookupReference provides a function to modify or replace
+	// destination references.
 	DestinationLookupReferenceFunc libimage.LookupReferenceFunc
 }
 
@@ -76,11 +76,32 @@ func Pull(ctx context.Context, imageName string, options PullOptions) (imageID s
 	libimageOptions.OciDecryptConfig = options.OciDecryptConfig
 	libimageOptions.AllTags = options.AllTags
 	libimageOptions.RetryDelay = &options.RetryDelay
-	libimageOptions.SourceLookupReferenceFunc = options.SourceLookupReferenceFunc
-	if options.DestinationLookupReferenceFunc != nil {
-		libimageOptions.DestinationLookupReferenceFunc = options.DestinationLookupReferenceFunc
-	} else {
-		libimageOptions.DestinationLookupReferenceFunc = cacheLookupReferenceFunc(options.BlobDirectory, types.PreserveOriginal)
+	libimageOptions.SourceLookupReferenceFunc = func(ref types.ImageReference) (types.ImageReference, error) {
+		if ref == nil {
+			return nil, errors.New("source lookup callback was passed a nil reference")
+		}
+		if options.SourceLookupReferenceFunc != nil {
+			if ref, err = options.SourceLookupReferenceFunc(ref); err != nil {
+				return nil, err
+			}
+		}
+		return ref, nil
+	}
+	libimageOptions.DestinationLookupReferenceFunc = func(ref types.ImageReference) (types.ImageReference, error) {
+		if ref == nil {
+			return nil, errors.New("destination lookup callback was passed a nil reference")
+		}
+		if options.DestinationLookupReferenceFunc != nil {
+			if ref, err = options.DestinationLookupReferenceFunc(ref); err != nil {
+				return nil, err
+			}
+		}
+		if options.BlobDirectory != "" {
+			if ref, err = blobcache.NewBlobCache(ref, options.BlobDirectory, types.PreserveOriginal); err != nil {
+				return nil, err
+			}
+		}
+		return ref, err
 	}
 
 	if options.MaxRetries > 0 {

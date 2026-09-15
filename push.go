@@ -2,6 +2,7 @@ package buildah
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -19,24 +20,6 @@ import (
 	"go.podman.io/storage"
 	"go.podman.io/storage/pkg/archive"
 )
-
-// cacheLookupReferenceFunc wraps a BlobCache into a
-// libimage.LookupReferenceFunc to allow for using a BlobCache during
-// image-copy operations.
-func cacheLookupReferenceFunc(directory string, compress types.LayerCompression, opts ...blobcache.Option) libimage.LookupReferenceFunc {
-	// Using a closure here allows us to reference a BlobCache without
-	// having to explicitly maintain it in the libimage API.
-	return func(ref types.ImageReference) (types.ImageReference, error) {
-		if directory == "" {
-			return ref, nil
-		}
-		ref, err := blobcache.NewBlobCache(ref, directory, compress, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("using blobcache %q: %w", directory, err)
-		}
-		return ref, nil
-	}
-}
 
 // PushOptions can be used to alter how an image is copied somewhere.
 type PushOptions struct {
@@ -66,8 +49,6 @@ type PushOptions struct {
 	// prebuilt copies of layer blobs that we might otherwise need to
 	// regenerate from on-disk layers, substituting them in the list of
 	// blobs to copy whenever possible.
-	//
-	// Not applicable if SourceLookupReferenceFunc is set.
 	BlobDirectory string
 	// Quiet is a boolean value that determines if minimal output to
 	// the user will be displayed, this is best used for logging.
@@ -92,11 +73,11 @@ type PushOptions struct {
 	// integers in the slice represent 0-indexed layer indices, with support for negative
 	// indexing. i.e. 0 is the first layer, -1 is the last (top-most) layer.
 	OciEncryptLayers *[]int
-	// SourceLookupReference provides a function to look up source
-	// references. Overrides BlobDirectory, if set.
+	// SourceLookupReference provides a function to modify or replace
+	// source references.
 	SourceLookupReferenceFunc libimage.LookupReferenceFunc
-	// DestinationLookupReference provides a function to look up destination
-	// references.
+	// DestinationLookupReference provides a function to modify or replace
+	// destination references.
 	DestinationLookupReferenceFunc libimage.LookupReferenceFunc
 
 	// CompressionFormat is the format to use for the compression of the blobs
@@ -139,16 +120,36 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 	if options.Compression != archive.Uncompressed {
 		compress = types.Compress
 	}
-	if options.SourceLookupReferenceFunc != nil {
-		libimageOptions.SourceLookupReferenceFunc = options.SourceLookupReferenceFunc
-	} else {
-		var cacheOpts []blobcache.Option
-		if options.CompressionFormat != nil {
-			cacheOpts = append(cacheOpts, blobcache.WithCompressAlgorithm(options.CompressionFormat))
+	libimageOptions.SourceLookupReferenceFunc = func(ref types.ImageReference) (types.ImageReference, error) {
+		var err error
+		if ref == nil {
+			return nil, errors.New("source lookup callback was passed a nil reference")
 		}
-		libimageOptions.SourceLookupReferenceFunc = cacheLookupReferenceFunc(options.BlobDirectory, compress, cacheOpts...)
+		if options.SourceLookupReferenceFunc != nil {
+			if ref, err = options.SourceLookupReferenceFunc(ref); err != nil {
+				return nil, err
+			}
+		}
+		if options.BlobDirectory != "" {
+			var cacheOpts []blobcache.Option
+			if options.CompressionFormat != nil {
+				cacheOpts = append(cacheOpts, blobcache.WithCompressAlgorithm(options.CompressionFormat))
+			}
+			if ref, err = blobcache.NewBlobCache(ref, options.BlobDirectory, compress, cacheOpts...); err != nil {
+				return nil, err
+			}
+		}
+		return ref, err
 	}
-	libimageOptions.DestinationLookupReferenceFunc = options.DestinationLookupReferenceFunc
+	libimageOptions.DestinationLookupReferenceFunc = func(ref types.ImageReference) (types.ImageReference, error) {
+		var err error
+		if options.DestinationLookupReferenceFunc != nil {
+			if ref, err = options.DestinationLookupReferenceFunc(ref); err != nil {
+				return nil, err
+			}
+		}
+		return ref, nil
+	}
 
 	runtime, err := libimage.RuntimeFromStore(options.Store, &libimage.RuntimeOptions{SystemContext: options.SystemContext})
 	if err != nil {
