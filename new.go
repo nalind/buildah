@@ -14,11 +14,10 @@ import (
 	"github.com/openshift/imagebuilder"
 	"github.com/sirupsen/logrus"
 	"go.podman.io/buildah/define"
-	"go.podman.io/common/libimage"
-	"go.podman.io/common/pkg/config"
 	"go.podman.io/image/v5/image"
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/image/v5/pkg/shortnames"
+	istorage "go.podman.io/image/v5/storage"
 	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"
@@ -144,39 +143,34 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	systemContext := getSystemContext(store, options.SystemContext, options.SignaturePolicyPath)
 
 	if options.FromImage != "" && options.FromImage != BaseImageFakeName {
-		imageRuntime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
-		if err != nil {
-			return nil, err
-		}
-
-		pullPolicy, err := config.ParsePullPolicy(options.PullPolicy.String())
-		if err != nil {
-			return nil, err
-		}
-
 		// Note: options.Format does *not* relate to the image we're
 		// about to pull (see tests/digests.bats).  So we're not
 		// forcing a MIMEType in the pullOptions below.
-		pullOptions := libimage.PullOptions{}
-		pullOptions.RetryDelay = &options.PullRetryDelay
+		pullOptions := PullOptions{}
+		pullOptions.Store = store
+		pullOptions.SystemContext = systemContext
+		pullOptions.RetryDelay = options.PullRetryDelay
 		pullOptions.OciDecryptConfig = options.OciDecryptConfig
 		pullOptions.SignaturePolicyPath = options.SignaturePolicyPath
-		pullOptions.Writer = options.ReportWriter
-		pullOptions.DestinationLookupReferenceFunc = cacheLookupReferenceFunc(options.BlobDirectory, types.PreserveOriginal)
+		pullOptions.ReportWriter = options.ReportWriter
+		pullOptions.PullPolicy = options.PullPolicy
+		pullOptions.BlobDirectory = options.BlobDirectory
+		pullOptions.MaxRetries = options.MaxPullRetries
 
-		maxRetries := uint(options.MaxPullRetries)
-		pullOptions.MaxRetries = &maxRetries
-
-		pulledImages, err := imageRuntime.Pull(ctx, options.FromImage, pullPolicy, &pullOptions)
+		pulledImageID, err := Pull(ctx, options.FromImage, pullOptions)
 		if err != nil {
 			return nil, err
 		}
-		if len(pulledImages) > 0 {
-			img = pulledImages[0].StorageImage()
-			ref, err = pulledImages[0].StorageReference()
-			if err != nil {
-				return nil, err
-			}
+		if pulledImageID == "" {
+			return nil, fmt.Errorf("unknown error determining image ID for pulled image %q", options.FromImage)
+		}
+		img, err = store.Image(pulledImageID)
+		if err != nil {
+			return nil, fmt.Errorf("locating pulled image %q by ID: %w", pulledImageID, err)
+		}
+		ref, err = istorage.Transport.NewStoreReference(store, nil, pulledImageID)
+		if err != nil {
+			return nil, fmt.Errorf("creating reference to pulled image %q by ID: %w", pulledImageID, err)
 		}
 	}
 
