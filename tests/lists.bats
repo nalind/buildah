@@ -2,14 +2,14 @@
 
 load helpers
 
-IMAGE_LIST=docker://registry.k8s.io/pause:3.1
-IMAGE_LIST_DIGEST=docker://registry.k8s.io/pause@sha256:f78411e19d84a252e53bff71a4407a5686c46983a2c2eeed83929b888179acea
-IMAGE_LIST_INSTANCE=docker://registry.k8s.io/pause@sha256:f365626a556e58189fc21d099fc64603db0f440bff07f77c740989515c544a39
-IMAGE_LIST_AMD64_INSTANCE_DIGEST=sha256:59eec8837a4d942cc19a52b8c09ea75121acc38114a2c68b98983ce9356b8610
-IMAGE_LIST_ARM_INSTANCE_DIGEST=sha256:c84b0a3a07b628bc4d62e5047d0f8dff80f7c00979e1e28a821a033ecda8fe53
-IMAGE_LIST_ARM64_INSTANCE_DIGEST=sha256:f365626a556e58189fc21d099fc64603db0f440bff07f77c740989515c544a39
-IMAGE_LIST_PPC64LE_INSTANCE_DIGEST=sha256:bcf9771c0b505e68c65440474179592ffdfa98790eb54ffbf129969c5e429990
-IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca093af978217112c73803546d5e
+IMAGE_LIST=docker://quay.io/libpod/k8s-pause:3.5-nowin
+IMAGE_LIST_DIGEST=docker://quay.io/libpod/k8s-pause@sha256:7b836454ece3b180021655dbafcf0d7cc1b0ad77015700cee53700a0009f5324
+IMAGE_LIST_INSTANCE=docker://quay.io/libpod/k8s-pause@sha256:76ca2030ac3433ab5bbcfdea286b0876b129fc276e0f9d2811674141ea7bab6b
+IMAGE_LIST_AMD64_INSTANCE_DIGEST=sha256:369201a612f7b2b585a8e6ca99f77a36bcdbd032463d815388a96800b63ef2c8
+IMAGE_LIST_ARM_INSTANCE_DIGEST=sha256:94ee124c4b0ca7c1315c06c31532f78a929051ae8da7f122f905b2cbbfb1ecba
+IMAGE_LIST_ARM64_INSTANCE_DIGEST=sha256:76ca2030ac3433ab5bbcfdea286b0876b129fc276e0f9d2811674141ea7bab6b
+IMAGE_LIST_PPC64LE_INSTANCE_DIGEST=sha256:95e406e45b39993dc89f964ab1ab42db30369bd3406c1b11ef2129ab18d9c7bb
+IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:fc5aae77765f7f26f729bad7bfb3cef1bf4e9260d616d173af4506b4f9fc63d3
 
 @test "manifest-create" {
     _prefetch busybox
@@ -367,9 +367,9 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 @test "manifest-from-instance" {
     run_buildah from $WITH_POLICY_JSON --name test-container ${IMAGE_LIST_INSTANCE}
     run_buildah inspect --format '{{.OCIv1.Architecture}}' ${IMAGE_LIST_INSTANCE#docker://}
-    expect_output --substring amd64
+    expect_output --substring arm64
     run_buildah inspect --format '{{.OCIv1.Architecture}}' test-container
-    expect_output --substring amd64
+    expect_output --substring arm64
 }
 
 @test "manifest-no-matching-instance" {
@@ -382,7 +382,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     # Remove the entry for the current arch from the list.
     arch=$(go env GOARCH)
     run_buildah manifest inspect test-list
-    archinstance=$(jq -r '.manifests|map(select(.platform.architecture=="'$arch'"))[].digest' <<< "$output")
+    archinstance=$(jq -r '.manifests|map(select(.platform.architecture=="'$arch'" and .platform.os=="linux"))[].digest' <<< "$output")
     run_buildah manifest remove test-list $archinstance
     # Try to build using the build cache.
     mkdir ${TEST_SCRATCH_DIR}/build
