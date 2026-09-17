@@ -609,7 +609,8 @@ func (b *Builder) AddContext(ctx context.Context, destination string, extract bo
 		var multiErr *multierror.Error
 		var getErr, closeErr, renameErr, putErr error
 		var wg sync.WaitGroup
-		if urlsource.IsRemote(src) || urlsource.IsGit(src) {
+		isGitSrc := urlsource.IsGit(src)
+		if urlsource.IsRemote(src) || isGitSrc {
 			pipeReader, pipeWriter := io.Pipe()
 			var srcDigest digest.Digest
 			if options.Checksum != "" {
@@ -620,7 +621,7 @@ func (b *Builder) AddContext(ctx context.Context, destination string, extract bo
 			}
 
 			wg.Add(1)
-			if urlsource.IsGit(src) {
+			if isGitSrc {
 				go func() {
 					defer wg.Done()
 					defer pipeWriter.Close()
@@ -671,7 +672,11 @@ func (b *Builder) AddContext(ctx context.Context, destination string, extract bo
 			}
 
 			wg.Go(func() {
-				b.ContentDigester.Start("")
+				if isGitSrc {
+					b.ContentDigester.Start("dir")
+				} else {
+					b.ContentDigester.Start("")
+				}
 				hashCloser := b.ContentDigester.Hash()
 				hasher := io.Writer(hashCloser)
 				if options.Hasher != nil {
