@@ -126,6 +126,9 @@ type AddAndCopyOptions struct {
 	// FollowSymlink controls whether symlinks should be followed when copying content.
 	// When set to false, symlinks are not dereferenced.
 	FollowSymlink types.OptionalBool
+	// KeepGitDir keeps the cloned ".git" subdirectory instead of stripping it out
+	// when set to true. This is only meaningful for Git sources. Defaults to false.
+	KeepGitDir bool
 }
 
 // getURL writes a tar archive containing the named content
@@ -644,6 +647,14 @@ func (b *Builder) AddContext(ctx context.Context, destination string, extract bo
 					}
 					writer := io.WriteCloser(pipeWriter)
 					repositoryDir := filepath.Join(cloneDir, subdir)
+
+					// Unless the caller asked to keep the ".git", remove it before copying.
+					if !options.KeepGitDir {
+						if getErr = os.RemoveAll(filepath.Join(repositoryDir, ".git")); getErr != nil {
+							getErr = fmt.Errorf("removing .git directory: %w", getErr)
+							return
+						}
+					}
 					getErr = copier.GetContext(ctx, repositoryDir, repositoryDir, getOptions, []string{"."}, writer)
 				}()
 			} else {
