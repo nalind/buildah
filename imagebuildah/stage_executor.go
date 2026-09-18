@@ -37,6 +37,7 @@ import (
 	"go.podman.io/buildah/pkg/parse"
 	"go.podman.io/buildah/pkg/rusage"
 	"go.podman.io/buildah/pkg/sourcepolicy"
+	tmpdirpkg "go.podman.io/buildah/pkg/tmpdir"
 	"go.podman.io/buildah/util"
 	config "go.podman.io/common/pkg/config"
 	cp "go.podman.io/image/v5/copy"
@@ -518,7 +519,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 							// additional context contains a tar file
 							// so download and explode tar to buildah
 							// temp and point context to that.
-							path, subdir, err := define.TempDirForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
+							path, subdir, err := tmpdirpkg.ForURL(s.ctx, tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
 							if err != nil {
 								return fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
 							}
@@ -736,7 +737,7 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 								// additional context contains a tar file
 								// so download and explode tar to buildah
 								// temp and point context to that.
-								path, subdir, err := define.TempDirForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
+								path, subdir, err := tmpdirpkg.ForURL(s.ctx, tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
 								if err != nil {
 									return nil, fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
 								}

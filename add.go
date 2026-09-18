@@ -32,6 +32,7 @@ import (
 	"go.podman.io/buildah/internal/tmpdir"
 	"go.podman.io/buildah/internal/urlsource"
 	"go.podman.io/buildah/pkg/chrootuser"
+	tmpdirpkg "go.podman.io/buildah/pkg/tmpdir"
 	"go.podman.io/common/pkg/retry"
 	"go.podman.io/image/v5/pkg/tlsclientconfig"
 	"go.podman.io/image/v5/types"
@@ -625,7 +626,7 @@ func (b *Builder) AddContext(ctx context.Context, destination string, extract bo
 					defer wg.Done()
 					defer pipeWriter.Close()
 					var cloneDir, subdir string
-					cloneDir, subdir, getErr = define.TempDirForURLContext(ctx, tmpdir.GetTempDir(), "", src)
+					cloneDir, subdir, getErr = tmpdirpkg.ForURL(ctx, tmpdir.GetTempDir(), "", src)
 					if getErr != nil {
 						return
 					}
