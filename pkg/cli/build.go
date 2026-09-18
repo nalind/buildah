@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -158,7 +159,16 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		if ctx == nil {
 			ctx = context.TODO()
 		}
-		tempDir, subDir, err := tmpdir.ForURL(ctx, "", "buildah", cliArgs[0])
+		urlOptions := tmpdir.URLOptions{
+			Proxy: http.ProxyFromEnvironment,
+		}
+		if c.Flag("cert-dir").Changed {
+			urlOptions.CertPath = iopts.CertDir
+		}
+		if c.Flag("tls-verify").Changed {
+			urlOptions.InsecureSkipTLSVerify = types.NewOptionalBool(!iopts.TLSVerify)
+		}
+		tempDir, subDir, err := tmpdir.ForURL(ctx, "", "buildah", cliArgs[0], &urlOptions)
 		if err != nil {
 			return options, nil, nil, fmt.Errorf("prepping temporary context directory: %w", err)
 		}
@@ -483,6 +493,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		Output:                  outputSpec,
 		OutputFormat:            format,
 		Platforms:               platforms,
+		Proxy:                   http.ProxyFromEnvironment,
 		PullPolicy:              pullPolicy,
 		Quiet:                   iopts.Quiet,
 		RemoveIntermediateCtrs:  iopts.Rm,

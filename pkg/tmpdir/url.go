@@ -18,9 +18,12 @@ import (
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/sirupsen/logrus"
 	"go.podman.io/buildah/internal/ctxreader"
+	"go.podman.io/buildah/internal/httpclient"
 	"go.podman.io/buildah/internal/urlsource"
 	"go.podman.io/storage/pkg/chrootarchive"
 )
+
+type URLOptions = httpclient.URLOptions
 
 // ForURL checks if the passed-in string looks like a URL or "-".  If it is,
 // ForURL creates a temporary directory, arranges for its contents to be the
@@ -29,11 +32,15 @@ import (
 // Removal of the temporary directory is the responsibility of the caller.  If
 // the string doesn't look like a URL or "-", ForURL returns empty strings and
 // a nil error code.
-func ForURL(ctx context.Context, dir, prefix, url string) (tempDir, relativeContextDir string, err error) {
+func ForURL(ctx context.Context, dir, prefix, url string, options *URLOptions) (tempDir, relativeContextDir string, err error) {
 	select {
 	case <-ctx.Done():
 		return "", "", ctx.Err()
 	default:
+	}
+
+	if options == nil {
+		options = &URLOptions{}
 	}
 
 	if !urlsource.IsHTTPOrHTTPS(url) &&
@@ -75,7 +82,7 @@ func ForURL(ctx context.Context, dir, prefix, url string) (tempDir, relativeCont
 		}
 		contentSubdir = gitSubDir
 	case urlsource.IsHTTPOrHTTPS(url):
-		if err = downloadToDirectory(ctx, url, downloadDir); err != nil {
+		if err = downloadToDirectory(ctx, options, url, downloadDir); err != nil {
 			return "", "", err
 		}
 	case strings.HasPrefix(url, "github.com/"):
@@ -83,7 +90,7 @@ func ForURL(ctx context.Context, dir, prefix, url string) (tempDir, relativeCont
 		contentSubdir = path.Base(ghURL) + "-master"
 		downloadURL := fmt.Sprintf("https://%s/archive/master.tar.gz", ghURL)
 		logrus.Debugf("resolving url %q to %q", ghURL, downloadURL)
-		if err = downloadToDirectory(ctx, downloadURL, downloadDir); err != nil {
+		if err = downloadToDirectory(ctx, options, downloadURL, downloadDir); err != nil {
 			return "", "", err
 		}
 	case url == "-":
@@ -172,7 +179,7 @@ func cloneToDirectory(ctx context.Context, url, dir string) ([]byte, string, err
 	return combinedOutput, gitSubdir, nil
 }
 
-func downloadToDirectory(ctx context.Context, url, dir string) error {
+func downloadToDirectory(ctx context.Context, options *URLOptions, url, dir string) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -180,11 +187,15 @@ func downloadToDirectory(ctx context.Context, url, dir string) error {
 	}
 
 	logrus.Debugf("extracting %q to %q", url, dir)
+	httpClient, err := httpclient.ForURLOptions(*options)
+	if err != nil {
+		return err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
