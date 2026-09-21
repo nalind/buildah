@@ -695,7 +695,11 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 			require.NoError(t, err)
 
 			archive := makeArchiveSlice([]tar.Header{})
-			err = Put(tmp, "a/b", PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+			err = PutContext(ctx, tmp, "a/b", PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+			if expectedError != nil {
+				assert.ErrorContains(t, err, expectedError.Error())
+				return
+			}
 			require.NoError(t, err)
 			// The symlink was confined to req.Root
 			expectedDestPath := filepath.Join(tmp, strings.ReplaceAll(tc.expectedDir, "VICTIM", victim))
@@ -803,7 +807,11 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 				headers[i].Linkname = strings.ReplaceAll(headers[i].Linkname, "@TOP@", topdir)
 			}
 			archive := makeArchiveSlice(headers)
-			err = Put(dest, dest, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+			err = PutContext(ctx, dest, dest, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+			if expectedError != nil {
+				assert.ErrorContains(t, err, expectedError.Error())
+				return
+			}
 			if err != nil {
 				// os.Root’s errPathEscapes is not exported, so we must use a substring check.
 				assert.True(t, errors.Is(err, fs.ErrNotExist) || strings.Contains(err.Error(), "path escapes from parent"), "%v", err)
@@ -867,11 +875,15 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 				{Typeflag: tar.TypeLink, Name: "link", Linkname: strings.Replace(c.linkName, "TOP", topDir, 1), Mode: 0o600},
 			})
 			// Either creating the hard link must fail …
-			if err := Put(destDir, destDir, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive)); err == nil {
+			err = PutContext(ctx, destDir, destDir, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+			if err == nil {
 				// … or it must be a hard link to our symlink, not to the victim.
 				linkInfo, err := os.Lstat(filepath.Join(destDir, "link"))
 				require.NoError(t, err)
 				assert.Equal(t, fs.ModeSymlink, linkInfo.Mode().Type())
+			}
+			if expectedError != nil {
+				assert.ErrorContains(t, err, expectedError.Error())
 			}
 		})
 	}
@@ -899,7 +911,11 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 					{Typeflag: tar.TypeSymlink, Name: rootName, Linkname: victim, Mode: 0o700},
 					{Typeflag: tar.TypeReg, Name: filepath.Join(rootName, "file"), Mode: 0o600},
 				})
-				err = Put(dest+destSuffix, dest+destSuffix, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+				err = PutContext(ctx, dest+destSuffix, dest+destSuffix, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+				if expectedError != nil {
+					assert.ErrorContains(t, err, expectedError.Error())
+					return
+				}
 				require.Error(t, err)
 
 				fi, err := os.Lstat(dest)
@@ -923,7 +939,11 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 					{Typeflag: tar.TypeDir, Name: rootName, Mode: 0o700},
 					{Typeflag: tar.TypeReg, Name: filepath.Join(rootName, "file"), Mode: 0o600},
 				})
-				err = Put(dest+destSuffix, dest+destSuffix, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+				err = PutContext(ctx, dest+destSuffix, dest+destSuffix, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, bytes.NewReader(archive))
+				if expectedError != nil {
+					assert.ErrorContains(t, err, expectedError.Error())
+					return
+				}
 				require.NoError(t, err)
 
 				fi, err := os.Lstat(dest)
@@ -948,7 +968,11 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 			{Typeflag: tar.TypeSymlink, Name: "dir", Linkname: victim, Mode: 0o700},
 		})
 		reader := bytes.NewReader(archive)
-		err = Put(dest, dest, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, reader)
+		err = PutContext(ctx, dest, dest, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, reader)
+		if expectedError != nil {
+			assert.ErrorContains(t, err, expectedError.Error())
+			return
+		}
 		assert.NoError(t, err)
 		fi, err := os.Lstat(filepath.Join(dest, "dir"))
 		require.NoError(t, err)
@@ -1160,7 +1184,7 @@ func testGetSingle(ctx context.Context, t *testing.T, expectedError error) {
 											getOptions.StripStickyBit = stripStickyBit
 											pipeReader, pipeWriter := io.Pipe()
 											wg.Go(func() {
-												getErr = GetContext(t.Context(), root, topdir, getOptions, []string{name}, pipeWriter)
+												getErr = GetContext(ctx, root, topdir, getOptions, []string{name}, pipeWriter)
 												pipeWriter.Close()
 											})
 											tr := tar.NewReader(pipeReader)
@@ -1943,8 +1967,12 @@ func testGetMultiple(ctx context.Context, t *testing.T, expectedGetError error) 
 
 				t.Run(fmt.Sprintf("topdir=%s,archive=%s,case=%s,pattern=%s", topdir, testArchive.name, testCase.name, testCase.pattern), func(t *testing.T) {
 					// ensure that we can get stuff using this spec
-					err := GetContext(t.Context(), root, topdir, getOptions, []string{testCase.pattern}, io.Discard)
+					err := GetContext(ctx, root, topdir, getOptions, []string{testCase.pattern}, io.Discard)
 					if err != nil && isExpectedError(err, topdir != "" && topdir != ".", testCase.pattern, testArchive.expectedGetErrors) {
+						return
+					}
+					if expectedGetError != nil {
+						require.ErrorContains(t, err, expectedGetError.Error())
 						return
 					}
 					require.NoErrorf(t, err, "error getting %q under %q", testCase.pattern, filepath.Join(root, topdir))

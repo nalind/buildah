@@ -220,7 +220,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if err != nil {
 		return fmt.Errorf("building system context: %w", err)
 	}
-	mounts, mountedImages, intermediateMounts, _, targetLocks, err := volumes.GetVolumes(systemContext, store, builder.MountLabel, iopts.volumes, iopts.mounts, iopts.contextDir, builder.IDMappingOptions, iopts.workingDir, tmpDir)
+	mounts, mountedImages, intermediateMounts, _, targetLocks, err := volumes.GetVolumes(getContext(), systemContext, store, builder.MountLabel, iopts.volumes, iopts.mounts, iopts.contextDir, builder.IDMappingOptions, iopts.workingDir, tmpDir)
 	if err != nil {
 		return err
 	}

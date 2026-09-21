@@ -261,7 +261,7 @@ func serveSftpCmd(c *cobra.Command, args []string) error {
 	if readOnly {
 		sftpServerArgs = append(sftpServerArgs, "ro")
 	}
-	subprocess := reexec.Command(sftpServerArgs...)
+	subprocess := reexec.CommandContext(getContext(), sftpServerArgs...)
 	subprocess.Stdin = os.Stdin
 	subprocess.Stdout = os.Stdout
 	subprocess.Stderr = os.Stderr
@@ -521,7 +521,7 @@ func listSshfsMountDirsCmd(c *cobra.Command, _ []string) error {
 func listSshfsMounts(inheritedFlags []string, selfExecutable string) ([]string, map[string]string, error) {
 	var listSshfsMountDirsStdout bytes.Buffer
 	listSshfsMountDirsArgs := append(slices.Clone(inheritedFlags), listSshfsMountDirs)
-	listSshfsMountDirs := exec.Command(selfExecutable, listSshfsMountDirsArgs...)
+	listSshfsMountDirs := exec.CommandContext(getContext(), selfExecutable, listSshfsMountDirsArgs...)
 	listSshfsMountDirs.Stdout = &listSshfsMountDirsStdout
 	listSshfsMountDirs.Stderr = os.Stderr
 	logrus.Debugf("running %v to get a list of possible sshfs mountpoints", listSshfsMountDirsArgs)
@@ -595,7 +595,7 @@ func mountSshfsCmd(c *cobra.Command, args []string) error {
 	for _, toMount := range args {
 		var mountParentDirBuffer bytes.Buffer
 		findDataDirArgs := append(slices.Clone(inheritedFlags), findDataDir, toMount)
-		findDataDir := exec.Command(selfExecutable, findDataDirArgs...)
+		findDataDir := exec.CommandContext(getContext(), selfExecutable, findDataDirArgs...)
 		findDataDir.Stdin = nil
 		findDataDir.Stdout = &mountParentDirBuffer
 		findDataDir.Stderr = os.Stderr
@@ -668,7 +668,7 @@ func mountSshfsCmd(c *cobra.Command, args []string) error {
 			}()
 
 			serveSftpArgs := append(slices.Clone(inheritedFlags), serveSftp, toMount)
-			serveSftp := exec.Command(selfExecutable, serveSftpArgs...)
+			serveSftp := exec.CommandContext(getContext(), selfExecutable, serveSftpArgs...)
 			serveSftp.Stdin = r1
 			serveSftp.Stdout = w2
 			serveSftp.Stderr = &serveSftpStderr[i]
@@ -697,7 +697,7 @@ func mountSshfsCmd(c *cobra.Command, args []string) error {
 
 			options := append(strings.Split(mountSshfsOptions, ","), "passive")
 			options = slices.DeleteFunc(options, func(s string) bool { return s == "" })
-			mountSshfs := exec.Command(absSshfs, "-f", "-o", strings.Join(options, ","), toMount+":/", whatGoesWhere[toMount])
+			mountSshfs := exec.CommandContext(getContext(), absSshfs, "-f", "-o", strings.Join(options, ","), toMount+":/", whatGoesWhere[toMount])
 			mountSshfs.Stdin = r2
 			mountSshfs.Stdout = w1
 			mountSshfs.Stderr = &mountSshfsStderr[i]
@@ -833,7 +833,7 @@ func umountSshfsCmd(c *cobra.Command, args []string) error {
 
 			if err := fileutils.Exists(toUnmount); err != nil && errors.Is(err, os.ErrNotExist) {
 				findDataDirArgs := append(slices.Clone(inheritedFlags), findDataDir, toUnmount)
-				findDataDir := exec.Command(selfExecutable, findDataDirArgs...)
+				findDataDir := exec.CommandContext(getContext(), selfExecutable, findDataDirArgs...)
 				findDataDir.Stdin = nil
 				findDataDir.Stdout = &mountParentDirBuffer
 				findDataDir.Stderr = os.Stderr
@@ -883,7 +883,7 @@ func umountSshfsCmd(c *cobra.Command, args []string) error {
 			errs = append(errs, fmt.Errorf("umount(%q): %w", mountPoint, mountError))
 			logrus.Debugf("umount(%q): %v", mountPoint, mountError)
 
-			umount := exec.Command("umount", "-l", mountPoint)
+			umount := exec.CommandContext(getContext(), "umount", "-l", mountPoint)
 			umount.Stdin = &bytes.Buffer{}
 			umount.Stdout = os.Stdout
 			umount.Stderr = os.Stderr
@@ -893,7 +893,7 @@ func umountSshfsCmd(c *cobra.Command, args []string) error {
 			if umountError != nil {
 				errs = append(errs, fmt.Errorf("umount %s: %w", mountPoint, umountError))
 				logrus.Debugf("umount(%q): %v", mountPoint, umountError)
-				fumount := exec.Command("fuserumount3", "-u", mountPoint)
+				fumount := exec.CommandContext(getContext(), "fuserumount3", "-u", mountPoint)
 				umount.Stdin = &bytes.Buffer{}
 				fumount.Stdout = os.Stdout
 				fumount.Stderr = os.Stderr

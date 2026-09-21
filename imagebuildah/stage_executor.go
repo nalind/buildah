@@ -285,7 +285,7 @@ func (s *stageExecutor) volumeCacheSaveVFS() (mounts []specs.Mount, err error) {
 // Restore the contents of each of the executor's list of volumes.
 func (s *stageExecutor) volumeCacheRestoreVFS() (err error) {
 	for cachedPath, cacheFile := range s.volumeCache {
-		archivedPath, err := copier.Eval(s.mountPoint, filepath.Join(s.mountPoint, cachedPath), copier.EvalOptions{})
+		archivedPath, err := copier.EvalContext(s.ctx, s.mountPoint, filepath.Join(s.mountPoint, cachedPath), copier.EvalOptions{})
 		if err != nil {
 			return fmt.Errorf("evaluating volume path: %w", err)
 		}
@@ -295,7 +295,7 @@ func (s *stageExecutor) volumeCacheRestoreVFS() (err error) {
 			return fmt.Errorf("restoring contents of volume %q: %w", archivedPath, err)
 		}
 		defer cache.Close()
-		if err := copier.Remove(s.mountPoint, archivedPath, copier.RemoveOptions{All: true}); err != nil {
+		if err := copier.RemoveContext(s.ctx, s.mountPoint, archivedPath, copier.RemoveOptions{All: true}); err != nil {
 			return err
 		}
 		err = chrootarchive.Untar(cache, archivedPath, nil)
@@ -2910,7 +2910,7 @@ func (s *stageExecutor) EnsureContainerPath(path string) error {
 		return s.ctx.Err()
 	default:
 	}
-	return s.builder.EnsureContainerPathAs(path, "", nil)
+	return s.builder.EnsureContainerPathAsContext(s.ctx, path, "", nil)
 }
 
 func (s *stageExecutor) EnsureContainerPathAs(path, user string, mode *os.FileMode) error {
@@ -2920,7 +2920,7 @@ func (s *stageExecutor) EnsureContainerPathAs(path, user string, mode *os.FileMo
 		return s.ctx.Err()
 	default:
 	}
-	return s.builder.EnsureContainerPathAs(path, user, mode)
+	return s.builder.EnsureContainerPathAsContext(s.ctx, path, user, mode)
 }
 
 // buildMetadata constructs the text at the end of the createdBy value for the
