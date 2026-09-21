@@ -7217,8 +7217,8 @@ _EOF
   for dir in parents/x parents_dir_point ;do
     # Target of symlink-a.txt is not changed when using --parents with pivot point
     # Docker does not change the symlink target when using --parents with pivot point
-    run stat -c "%N" ${root}/${dir}/z/symlink-b.txt
-    expect_output "'${root}/${dir}/z/symlink-b.txt' -> '/x/z/b.txt'" "symlink-b.txt: symlink to b.txt"
+    run readlink ${root}/${dir}/z/symlink-b.txt
+    expect_output "/x/z/b.txt" "symlink-b.txt: symlink to b.txt"
 
     run stat -c "%d:%i" ${root}/${dir}/y/b.txt
     file_b1=$output
