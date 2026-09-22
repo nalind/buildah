@@ -1010,9 +1010,16 @@ func (b *Builder) userForCopy(mountPoint string, userspec string) (uint32, uint3
 	return owner.UID, owner.GID, nil
 }
 
-// EnsureContainerPathAs creates the specified directory if it doesn't exist,
-// setting a newly-created directory's owner to USER and its permissions to MODE.
+// EnsureContainerPathAs calls EnsureContainerPathAsContext using context.TODO().
+//
+//go:fix inline
 func (b *Builder) EnsureContainerPathAs(path, user string, mode *os.FileMode) error {
+	return b.EnsureContainerPathAsContext(context.TODO(), path, user, mode)
+}
+
+// EnsureContainerPathAsContext creates the specified directory if it doesn't exist,
+// setting a newly-created directory's owner to USER and its permissions to MODE.
+func (b *Builder) EnsureContainerPathAsContext(ctx context.Context, path, user string, mode *os.FileMode) error {
 	mountPoint, err := b.Mount(b.MountLabel)
 	if err != nil {
 		return err
@@ -1040,5 +1047,5 @@ func (b *Builder) EnsureContainerPathAs(path, user string, mode *os.FileMode) er
 		UIDMap:   destUIDMap,
 		GIDMap:   destGIDMap,
 	}
-	return copier.Mkdir(mountPoint, filepath.Join(mountPoint, path), opts)
+	return copier.MkdirContext(ctx, mountPoint, filepath.Join(mountPoint, path), opts)
 }

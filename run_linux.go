@@ -1458,9 +1458,9 @@ func checkIDsGreaterThan5(ids []specs.LinuxIDMapping) bool {
 // filesystem (if we provided the path to its mountpoint) and remove its
 // mountpoint, unmount the image (if we mounted one), and release the lock (if
 // we took one).
-func (b *Builder) getCacheMount(tokens []string, sys *types.SystemContext, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, string, string, *lockfile.LockFile, error) {
+func (b *Builder) getCacheMount(ctx context.Context, sys *types.SystemContext, tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, string, string, *lockfile.LockFile, error) {
 	var optionMounts []specs.Mount
-	optionMount, mountedImage, intermediateMount, overlayMount, targetLock, err := volumes.GetCacheMount(sys, tokens, b.store, b.MountLabel, stageMountPoints, idMaps.uidmap, idMaps.gidmap, workDir, tmpDir)
+	optionMount, mountedImage, intermediateMount, overlayMount, targetLock, err := volumes.GetCacheMount(ctx, sys, tokens, b.store, b.MountLabel, stageMountPoints, idMaps.uidmap, idMaps.gidmap, workDir, tmpDir)
 	if err != nil {
 		return nil, "", "", "", nil, err
 	}

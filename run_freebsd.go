@@ -342,7 +342,7 @@ func (b *Builder) RunContext(ctx context.Context, command []string, options RunO
 		// points to stick around.  They'll still get filtered out at
 		// commit-time if another concurrent Run() is keeping something
 		// busy.
-		if _, err := copier.ConditionalRemove(mountPoint, mountPoint, copier.ConditionalRemoveOptions{
+		if _, err := copier.ConditionalRemoveContext(ctx, mountPoint, mountPoint, copier.ConditionalRemoveOptions{
 			UIDMap: b.store.UIDMap(),
 			GIDMap: b.store.GIDMap(),
 			Paths:  createdMountTargets,
@@ -393,7 +393,7 @@ func setupSpecialMountSpecChanges(spec *specs.Spec, shmSize string) ([]specs.Mou
 // unmount the mounted filesystem (if we provided the path to its mountpoint)
 // and remove its mountpoint, unmount the image (if we mounted one), and
 // release the lock (if we took one).
-func (b *Builder) getCacheMount(tokens []string, sys *types.SystemContext, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, string, string, *lockfile.LockFile, error) {
+func (b *Builder) getCacheMount(ctx context.Context, sys *types.SystemContext, tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, string, string, *lockfile.LockFile, error) {
 	return nil, "", "", "", nil, errors.New("cache mounts not supported on freebsd")
 }
 

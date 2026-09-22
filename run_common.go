@@ -1398,7 +1398,7 @@ func (b *Builder) setupMounts(ctx context.Context, mountPoint string, spec *spec
 		processGID: int(processGID),
 	}
 	// Get the list of mounts that are just for this Run() call.
-	runMounts, mountArtifacts, err := b.runSetupRunMounts(bundlePath, runFileMounts, runMountInfo, idMaps)
+	runMounts, mountArtifacts, err := b.runSetupRunMounts(ctx, bundlePath, runFileMounts, runMountInfo, idMaps)
 	if err != nil {
 		return nil, err
 	}
@@ -1532,7 +1532,7 @@ func runSetupBuiltinVolumes(ctx context.Context, mountLabel, mountPoint, contain
 // If this function succeeds, the caller must free the returned
 // runMountArtifacts by calling b.cleanupRunMounts() after the command being
 // executed with those mounts has finished.
-func (b *Builder) runSetupRunMounts(bundlePath string, mounts []string, sources runMountInfo, idMaps IDMaps) ([]specs.Mount, *runMountArtifacts, error) {
+func (b *Builder) runSetupRunMounts(ctx context.Context, bundlePath string, mounts []string, sources runMountInfo, idMaps IDMaps) ([]specs.Mount, *runMountArtifacts, error) {
 	tmpFiles := make([]string, 0, len(mounts))
 	mountImages := make([]string, 0, len(mounts))
 	intermediateMounts := make([]string, 0, len(mounts))
@@ -1627,7 +1627,7 @@ func (b *Builder) runSetupRunMounts(bundlePath string, mounts []string, sources 
 					return nil, nil, err
 				}
 			}
-			mountSpec, image, intermediateMount, overlayDir, err := b.getBindMount(tokens, sources.SystemContext, sources.ContextDir, sources.StageMountPoints, idMaps, sources.WorkDir, bundleMountsDir)
+			mountSpec, image, intermediateMount, overlayDir, err := b.getBindMount(ctx, sources.SystemContext, tokens, sources.ContextDir, sources.StageMountPoints, idMaps, sources.WorkDir, bundleMountsDir)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -1654,7 +1654,7 @@ func (b *Builder) runSetupRunMounts(bundlePath string, mounts []string, sources 
 					return nil, nil, err
 				}
 			}
-			mountSpec, image, intermediateMount, overlayDir, tl, err := b.getCacheMount(tokens, sources.SystemContext, sources.StageMountPoints, idMaps, sources.WorkDir, bundleMountsDir)
+			mountSpec, image, intermediateMount, overlayDir, tl, err := b.getCacheMount(ctx, sources.SystemContext, tokens, sources.StageMountPoints, idMaps, sources.WorkDir, bundleMountsDir)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -1687,12 +1687,12 @@ func (b *Builder) runSetupRunMounts(bundlePath string, mounts []string, sources 
 	return finalMounts, artifacts, nil
 }
 
-func (b *Builder) getBindMount(tokens []string, sys *types.SystemContext, contextDir string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, string, string, error) {
+func (b *Builder) getBindMount(ctx context.Context, sys *types.SystemContext, tokens []string, contextDir string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, string, string, error) {
 	if contextDir == "" {
 		return nil, "", "", "", errors.New("context directory for current run invocation is not configured")
 	}
 	var optionMounts []specs.Mount
-	optionMount, image, intermediateMount, overlayMount, err := volumes.GetBindMount(sys, tokens, contextDir, b.store, b.MountLabel, stageMountPoints, workDir, tmpDir)
+	optionMount, image, intermediateMount, overlayMount, err := volumes.GetBindMount(ctx, sys, tokens, contextDir, b.store, b.MountLabel, stageMountPoints, workDir, tmpDir)
 	if err != nil {
 		return nil, "", "", "", err
 	}
