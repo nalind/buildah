@@ -242,7 +242,9 @@ option to `false`.  The environment variables passed in include `http_proxy`,
 `https_proxy`, `ftp_proxy`, `no_proxy`, and also the upper case versions of
 those.
 
-Defaults to `true`
+The default for this option is taken from the `http_proxy` setting in the
+`[containers]` table of containers.conf(5). If unset, that value defaults to
+`true`.
 
 **--ipc** *how*
 

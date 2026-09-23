@@ -511,13 +511,17 @@ For the bind-mount conditions, only mounts explicitly requested by the caller vi
 
 If --hooks-dir is unset for root callers, Buildah will currently default to /usr/share/containers/oci/hooks.d and /etc/containers/oci/hooks.d in order of increasing precedence. Using these defaults is deprecated, and callers should migrate to explicitly setting --hooks-dir.
 
-**--http-proxy**=true
+**--http-proxy**
 
 By default proxy environment variables are passed into the container if set
-for the buildah process.  This can be disabled by setting the `--http-proxy`
+for the Buildah process.  This can be disabled by setting the `--http-proxy`
 option to `false`.  The environment variables passed in include `http_proxy`,
 `https_proxy`, `ftp_proxy`, `no_proxy`, and also the upper case versions of
 those.
+
+The default for this option is taken from the `http_proxy` setting in the
+`[containers]` table of containers.conf(5). If unset, that value defaults to
+`true`.
 
 **--identity-label** *bool-value*
 
