@@ -3,6 +3,7 @@ package define
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -193,5 +194,6 @@ func TempDirForURL(dir, prefix, url string) (tempDir, relativeContextDir string,
 //
 // Internally, it calls go.podman.io/pkg/tmpdir.ForURL() to do the heavy lifting.
 func TempDirForURLContext(ctx context.Context, dir, prefix, url string) (tempDir, relativeContextDir string, err error) {
-	return tmpdir.ForURL(ctx, dir, prefix, url, nil)
+	options := tmpdir.URLOptions{Proxy: http.ProxyFromEnvironment}
+	return tmpdir.ForURL(ctx, dir, prefix, url, &options)
 }
